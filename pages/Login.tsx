@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, LogIn, AlertCircle, PlusCircle, Briefcase } from 'lucide-react';
-import { clearCredentials } from '../services/supabaseClient';
+import { Building2, LogIn, AlertCircle, PlusCircle, Briefcase, Lock } from 'lucide-react';
+import { clearCredentials, isHardcoded } from '../services/supabaseClient';
 
 export const Login: React.FC = () => {
   const { login, registerAgency, isLoading } = useApp();
@@ -9,11 +9,13 @@ export const Login: React.FC = () => {
   
   // Login State
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
   // Register State
   const [regAgencyName, setRegAgencyName] = useState('');
   const [regAdminName, setRegAdminName] = useState('');
   const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
 
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,9 +25,12 @@ export const Login: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 500));
-    const success = await login(email);
+    
+    // Login agora passa email e senha
+    const success = await login(email, password);
+    
     if (!success) {
-        setError('Usuário não encontrado. Verifique o e-mail.');
+        setError('E-mail ou senha incorretos.');
         setIsSubmitting(false);
     }
   };
@@ -34,7 +39,9 @@ export const Login: React.FC = () => {
       e.preventDefault();
       setError('');
       setIsSubmitting(true);
-      const success = await registerAgency(regAgencyName, regAdminName, regEmail);
+      
+      const success = await registerAgency(regAgencyName, regAdminName, regEmail, regPassword);
+      
       if (!success) {
           setError('Erro ao criar imobiliária. Tente novamente.');
           setIsSubmitting(false);
@@ -105,6 +112,20 @@ export const Login: React.FC = () => {
                             placeholder="seu@email.com"
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Senha</label>
+                        <div className="relative">
+                            <Lock size={18} className="absolute left-3 top-3.5 text-slate-400" />
+                            <input 
+                                type="password" 
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
 
                     <button 
                         type="submit" 
@@ -150,6 +171,17 @@ export const Login: React.FC = () => {
                             placeholder="admin@imoveisdosul.com"
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Senha</label>
+                        <input 
+                            type="password"
+                            required
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Crie uma senha segura"
+                        />
+                    </div>
 
                     <button 
                         type="submit" 
@@ -161,14 +193,16 @@ export const Login: React.FC = () => {
                 </form>
             )}
 
-            <div className="mt-8 text-center">
-                <button 
-                    onClick={handleResetConfig}
-                    className="text-xs text-slate-400 hover:text-red-500 underline"
-                >
-                    Configurações do Banco de Dados
-                </button>
-            </div>
+            {!isHardcoded() && (
+                <div className="mt-8 text-center">
+                    <button 
+                        onClick={handleResetConfig}
+                        className="text-xs text-slate-400 hover:text-red-500 underline"
+                    >
+                        Configurações do Banco de Dados
+                    </button>
+                </div>
+            )}
         </div>
       </div>
     </div>

@@ -7,18 +7,22 @@ interface AppContextType {
   setCurrentView: (view: ViewState) => void;
   properties: Property[];
   addProperty: (property: Property) => void;
+  updateProperty: (property: Property) => Promise<void>;
   deleteProperty: (id: string) => void;
   leads: Lead[];
   addLead: (lead: Lead) => void;
+  updateLead: (lead: Lead) => Promise<void>;
   updateLeadStatus: (id: string, status: LeadStatus) => void;
   tasks: Task[];
   addTask: (task: Task) => void;
   toggleTaskCompletion: (id: string) => void;
   users: User[];
+  createAgencyUser: (user: Partial<User>) => Promise<boolean>;
+  updateUser: (user: User) => Promise<boolean>;
   currentUser: User | null;
   currentAgency: Agency | null;
-  login: (email: string) => Promise<boolean>;
-  registerAgency: (agencyName: string, adminName: string, adminEmail: string) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
+  registerAgency: (agencyName: string, adminName: string, adminEmail: string, password?: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -47,9 +51,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Tenta recuperar sessão
         const savedUserId = localStorage.getItem('imob_user_id');
         if (savedUserId) {
-            // Precisamos buscar o usuário globalmente primeiro para saber de qual agência ele é
-            // Nota: Em produção real, o Auth do Supabase faria isso via Token.
-            // Aqui, faremos uma query direta.
+            // Busca o usuário pelo ID
             const allUsers = await DB.getAll<User>('users', { column: 'id', value: savedUserId });
             if (allUsers.length > 0) {
                 const user = allUsers[0];
@@ -91,14 +93,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return true;
   };
 
-  const login = async (email: string): Promise<boolean> => {
+  const login = async (email: string, password?: string): Promise<boolean> => {
       setIsLoading(true);
       try {
-        // Busca usuário pelo email (globalmente, pois ainda não sabemos a agência)
+        // Busca usuário pelo email
         const foundUsers = await DB.getAll<User>('users', { column: 'email', value: email });
         
         if (foundUsers.length > 0) {
             const user = foundUsers[0];
+            
+            // Verificação simples de senha (em produção usaríamos hash/bcrypt)
+            if (password && user.password && user.password !== password) {
+                console.warn("Senha incorreta");
+                setIsLoading(false);
+                return false;
+            }
+
             await loadAgencyData(user);
             setIsLoading(false);
             return true;
@@ -110,7 +120,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return false;
   };
 
-  const registerAgency = async (agencyName: string, adminName: string, adminEmail: string): Promise<boolean> => {
+  const registerAgency = async (agencyName: string, adminName: string, adminEmail: string, password?: string): Promise<boolean> => {
       setIsLoading(true);
       try {
           // 1. Criar Agência
@@ -126,6 +136,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: crypto.randomUUID(),
               name: adminName,
               email: adminEmail,
+              password: password || '123456', // Salva a senha
               role: 'Admin',
               avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=random`,
               agencyId: newAgency.id
@@ -143,6 +154,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
   };
 
+  const createAgencyUser = async (userData: Partial<User>): Promise<boolean> => {
+      if (!currentAgency || !currentUser) return false;
+      
+      try {
+          const newUser: User = {
+              id: crypto.randomUUID(),
+              name: userData.name!,
+              email: userData.email!,
+              password: userData.password!,
+              role: userData.role || 'Broker',
+              avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || '')}&background=random`,
+              agencyId: currentAgency.id
+          };
+
+          const savedUser = await DB.addItem<User>('users', newUser);
+          setUsers(prev => [...prev, savedUser]);
+          return true;
+      } catch (error) {
+          console.error("Erro ao criar usuário", error);
+          return false;
+      }
+  };
+
+  const updateUser = async (user: User): Promise<boolean> => {
+      try {
+          const updated = await DB.updateItem<User>('users', user);
+          setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+          return true;
+      } catch (error) {
+          console.error("Erro ao atualizar usuário", error);
+          return false;
+      }
+  };
+
   const logout = () => {
       setCurrentUser(null);
       setCurrentAgency(null);
@@ -153,7 +198,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentView('DASHBOARD');
   };
 
-  // --- CRUD WRAPPERS (Injetando Agency ID) ---
+  // --- CRUD WRAPPERS ---
 
   const addProperty = async (property: Property) => {
     if (!currentAgency) return;
@@ -162,19 +207,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProperties(prev => [...prev, saved]);
   };
 
+  const updateProperty = async (property: Property) => {
+    const updated = await DB.updateItem<Property>('properties', property);
+    setProperties(prev => prev.map(p => p.id === updated.id ? updated : p));
+  };
+
   const deleteProperty = async (id: string) => {
     await DB.deleteItem('properties', id);
     setProperties(prev => prev.filter(p => p.id !== id));
   };
 
   const addLead = async (lead: Lead) => {
-    // Se for lead público (sem currentAgency logado), precisamos tratar diferente ou exigir agencyId na chamada
-    // Mas o 'addLead' do context assume contexto logado.
-    // Para o PublicPage, vamos ter que passar o agencyId manualmente na chamada do DB ou inferir pelo imóvel.
-    
-    // CORREÇÃO: Se não tiver usuário logado (público), usamos o agencyId que já veio no objeto lead (setado pela PublicPage)
-    // Se tiver usuário logado, forçamos o da agência atual.
-    
     const finalAgencyId = currentUser ? currentAgency!.id : lead.agencyId;
     
     if (!finalAgencyId) {
@@ -185,10 +228,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const itemWithAgency = { ...lead, agencyId: finalAgencyId };
     const saved = await DB.addItem<Lead>('leads', itemWithAgency);
     
-    // Só atualiza estado local se estivermos logados na mesma agência
     if (currentUser && currentAgency && saved.agencyId === currentAgency.id) {
         setLeads(prev => [saved, ...prev]);
     }
+  };
+
+  const updateLead = async (lead: Lead) => {
+      const updated = await DB.updateItem<Lead>('leads', lead);
+      setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
   };
 
   const updateLeadStatus = async (id: string, status: LeadStatus) => {
@@ -222,14 +269,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentView,
       properties,
       addProperty,
+      updateProperty,
       deleteProperty,
       leads,
       addLead,
+      updateLead,
       updateLeadStatus,
       tasks,
       addTask,
       toggleTaskCompletion,
       users,
+      createAgencyUser,
+      updateUser,
       currentUser,
       currentAgency,
       login,

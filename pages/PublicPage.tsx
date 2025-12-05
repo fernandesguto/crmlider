@@ -164,7 +164,7 @@ export const PublicPage: React.FC = () => {
            {filteredProperties.map(property => (
              <div key={property.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                <div className="h-64 relative group">
-                  <img src={property.imageUrl} alt={property.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <img src={property.images?.[0] || 'https://via.placeholder.com/800'} alt={property.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   <div className="absolute top-4 left-4 bg-blue-600/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                     {property.type}
                   </div>
@@ -271,7 +271,7 @@ export const PublicPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="relative h-32">
-                <img src={selectedProperty.imageUrl} className="w-full h-full object-cover" alt="Property Header" />
+                <img src={selectedProperty.images?.[0] || 'https://via.placeholder.com/800'} className="w-full h-full object-cover" alt="Property Header" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-6">
                     <h3 className="text-white font-bold text-lg leading-tight line-clamp-2">{selectedProperty.title}</h3>
                 </div>

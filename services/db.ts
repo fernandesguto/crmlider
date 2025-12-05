@@ -106,11 +106,11 @@ export const seedDatabase = async () => {
         { id: agency2Id, name: 'Imobiliária Beta' }
     ]);
 
-    // 2. Criar Usuários vinculados a Agências
+    // 2. Criar Usuários vinculados a Agências (com senha padrão 123456)
     const users = [
-      { id: 'u1', name: 'Ana Silva', email: 'ana@alpha.com', role: 'Admin', avatarUrl: 'https://picsum.photos/id/64/100/100', agencyId: agency1Id },
-      { id: 'u2', name: 'Carlos Oliveira', email: 'carlos@alpha.com', role: 'Broker', avatarUrl: 'https://picsum.photos/id/91/100/100', agencyId: agency1Id },
-      { id: 'u3', name: 'Beatriz Costa', email: 'bia@beta.com', role: 'Admin', avatarUrl: 'https://picsum.photos/id/65/100/100', agencyId: agency2Id },
+      { id: 'u1', name: 'Ana Silva', email: 'ana@alpha.com', password: '123', role: 'Admin', avatarUrl: 'https://picsum.photos/id/64/100/100', agencyId: agency1Id },
+      { id: 'u2', name: 'Carlos Oliveira', email: 'carlos@alpha.com', password: '123', role: 'Broker', avatarUrl: 'https://picsum.photos/id/91/100/100', agencyId: agency1Id },
+      { id: 'u3', name: 'Beatriz Costa', email: 'bia@beta.com', password: '123', role: 'Admin', avatarUrl: 'https://picsum.photos/id/65/100/100', agencyId: agency2Id },
     ];
     await supabase.from('users').insert(users);
 
@@ -126,7 +126,7 @@ export const seedDatabase = async () => {
             bedrooms: 3,
             bathrooms: 2,
             area: 120,
-            imageUrl: 'https://picsum.photos/id/111/800/600',
+            images: ['https://picsum.photos/id/111/800/600', 'https://picsum.photos/id/112/800/600'],
             features: ['Piscina', 'Academia'],
             brokerId: 'u1',
             agencyId: agency1Id
@@ -146,7 +146,7 @@ export const seedDatabase = async () => {
             bedrooms: 4,
             bathrooms: 3,
             area: 300,
-            imageUrl: 'https://picsum.photos/id/124/800/600',
+            images: ['https://picsum.photos/id/124/800/600'],
             features: ['Jardim', 'Lareira'],
             brokerId: 'u3',
             agencyId: agency2Id

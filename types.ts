@@ -29,7 +29,7 @@ export interface Property {
   bedrooms: number;
   bathrooms: number;
   area: number;
-  imageUrl: string;
+  images: string[]; // Alterado de imageUrl string para array
   features: string[];
   brokerId: string; // The user managing this property
   agencyId: string; // Multi-tenant ID
@@ -62,6 +62,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string; // Campo de senha adicionado
   role: 'Admin' | 'Broker';
   avatarUrl: string;
   agencyId: string; // Multi-tenant ID

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
@@ -9,16 +9,11 @@ import { PublicPage } from './pages/PublicPage';
 import { Users } from './pages/Users';
 import { Login } from './pages/Login';
 import { SetupModal } from './components/SetupModal';
-import { isConfigured } from './services/supabaseClient';
+import { checkConfiguration } from './services/supabaseClient';
 
 const MainLayout: React.FC = () => {
   const { currentView, currentUser } = useApp();
 
-  // Se o usuário não estiver logado, mostra a tela de Login
-  // A exceção é se ele estiver tentando ver a página pública (opcional, aqui mantivemos o login fechado para o sistema)
-  // Mas vamos permitir ver a Public Page mesmo sem login se o ViewState for PUBLIC_SITE (acessado via URL ou botão externo imaginário, mas aqui controlamos via estado)
-  // Como o estado reseta no refresh, vamos forçar login primeiro.
-  
   if (!currentUser) {
       return <Login />;
   }
@@ -44,11 +39,29 @@ const MainLayout: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  // Se não estiver configurado (URL e Key não encontrados), exibe o modal de setup
+  // Estado local para saber se está configurado
+  const [isConfigured, setIsConfigured] = useState<boolean>(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+      // Verifica configuração ao montar
+      const configured = checkConfiguration();
+      setIsConfigured(configured);
+      setChecking(false);
+  }, []);
+
+  const handleConfigurationSuccess = () => {
+      setIsConfigured(true);
+  };
+
+  if (checking) return null;
+
+  // Se não estiver configurado, mostra o modal
   if (!isConfigured) {
-    return <SetupModal />;
+    return <SetupModal onSuccess={handleConfigurationSuccess} />;
   }
 
+  // Se estiver configurado, carrega o contexto da aplicação (que vai pedir Login se necessário)
   return (
     <AppProvider>
       <MainLayout />
