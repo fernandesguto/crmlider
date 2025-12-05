@@ -4,7 +4,7 @@ import { Lead, LeadStatus, Property } from '../types';
 import { Phone, Mail, Clock, Home, Search, Plus } from 'lucide-react';
 
 export const Leads: React.FC = () => {
-  const { leads, addLead, updateLeadStatus, properties } = useApp();
+  const { leads, addLead, updateLeadStatus, properties, currentAgency } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLead, setNewLead] = useState<Partial<Lead>>({ name: '', email: '', phone: '', type: 'Buyer', interestedInPropertyIds: [] });
@@ -38,7 +38,8 @@ export const Leads: React.FC = () => {
         status: LeadStatus.NEW,
         interestedInPropertyIds: newLead.interestedInPropertyIds || [],
         notes: '',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        agencyId: currentAgency?.id || ''
       });
       setShowAddModal(false);
       setNewLead({ name: '', email: '', phone: '', type: 'Buyer', interestedInPropertyIds: [] });
@@ -66,7 +67,7 @@ export const Leads: React.FC = () => {
         <input
           type="text"
           placeholder="Buscar leads por nome ou email..."
-          className="flex-1 outline-none text-slate-700"
+          className="flex-1 outline-none text-slate-900 bg-white"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -108,7 +109,7 @@ export const Leads: React.FC = () => {
               <select
                 value={lead.status}
                 onChange={(e) => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
-                className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+                className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
               >
                 {Object.values(LeadStatus).map(status => (
                   <option key={status} value={status}>{status}</option>
@@ -122,19 +123,19 @@ export const Leads: React.FC = () => {
        {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">Adicionar Lead</h2>
+            <h2 className="text-xl font-bold mb-4 text-slate-900">Adicionar Lead</h2>
             <form onSubmit={handleAddLead} className="space-y-4">
-              <input required placeholder="Nome" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} className="w-full border rounded p-2" />
-              <input required placeholder="Email" value={newLead.email} onChange={e => setNewLead({...newLead, email: e.target.value})} className="w-full border rounded p-2" />
-              <input placeholder="Telefone" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} className="w-full border rounded p-2" />
-              <select value={newLead.type} onChange={e => setNewLead({...newLead, type: e.target.value as any})} className="w-full border rounded p-2">
+              <input required placeholder="Nome" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} className="w-full bg-white text-slate-900 border rounded p-2" />
+              <input required placeholder="Email" value={newLead.email} onChange={e => setNewLead({...newLead, email: e.target.value})} className="w-full bg-white text-slate-900 border rounded p-2" />
+              <input placeholder="Telefone" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} className="w-full bg-white text-slate-900 border rounded p-2" />
+              <select value={newLead.type} onChange={e => setNewLead({...newLead, type: e.target.value as any})} className="w-full bg-white text-slate-900 border rounded p-2">
                 <option value="Buyer">Comprador</option>
                 <option value="Seller">Proprietário</option>
               </select>
               <div>
                 <label className="text-sm font-medium text-slate-700">Interesse em (Selecione ID):</label>
                 <select 
-                   className="w-full border rounded p-2 mt-1" 
+                   className="w-full bg-white text-slate-900 border rounded p-2 mt-1" 
                    onChange={(e) => {
                       if(e.target.value) setNewLead({...newLead, interestedInPropertyIds: [e.target.value]})
                    }}

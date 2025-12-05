@@ -4,7 +4,7 @@ import { Task } from '../types';
 import { Check, Calendar, Plus, Trash } from 'lucide-react';
 
 export const Tasks: React.FC = () => {
-  const { tasks, addTask, toggleTaskCompletion, currentUser } = useApp();
+  const { tasks, addTask, toggleTaskCompletion, currentUser, currentAgency } = useApp();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDate, setNewTaskDate] = useState('');
 
@@ -17,7 +17,8 @@ export const Tasks: React.FC = () => {
       title: newTaskTitle,
       dueDate: newTaskDate || new Date().toISOString().split('T')[0],
       completed: false,
-      assignedTo: currentUser.id
+      assignedTo: currentUser.id,
+      agencyId: currentAgency?.id || ''
     });
     setNewTaskTitle('');
     setNewTaskDate('');
@@ -42,13 +43,13 @@ export const Tasks: React.FC = () => {
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             placeholder="O que precisa ser feito?"
-            className="flex-1 border border-slate-200 rounded-lg px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 bg-white text-slate-900 border border-slate-200 rounded-lg px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <input
             type="date"
             value={newTaskDate}
             onChange={(e) => setNewTaskDate(e.target.value)}
-            className="border border-slate-200 rounded-lg px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600"
+            className="bg-white text-slate-900 border border-slate-200 rounded-lg px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"

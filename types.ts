@@ -13,6 +13,12 @@ export enum LeadStatus {
   LOST = 'Perdido',
 }
 
+export interface Agency {
+  id: string;
+  name: string;
+  createdAt?: string;
+}
+
 export interface Property {
   id: string;
   title: string;
@@ -26,6 +32,7 @@ export interface Property {
   imageUrl: string;
   features: string[];
   brokerId: string; // The user managing this property
+  agencyId: string; // Multi-tenant ID
 }
 
 export interface Lead {
@@ -38,6 +45,7 @@ export interface Lead {
   interestedInPropertyIds: string[];
   notes: string;
   createdAt: string;
+  agencyId: string; // Multi-tenant ID
 }
 
 export interface Task {
@@ -47,6 +55,7 @@ export interface Task {
   dueDate: string;
   completed: boolean;
   assignedTo: string; // User ID
+  agencyId: string; // Multi-tenant ID
 }
 
 export interface User {
@@ -55,6 +64,7 @@ export interface User {
   email: string;
   role: 'Admin' | 'Broker';
   avatarUrl: string;
+  agencyId: string; // Multi-tenant ID
 }
 
 export type ViewState = 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'PUBLIC_SITE';

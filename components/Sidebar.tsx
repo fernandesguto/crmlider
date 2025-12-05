@@ -1,10 +1,13 @@
 import React from 'react';
-import { LayoutDashboard, Building2, Users, CheckSquare, Globe, LogOut, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CheckSquare, Globe, LogOut, UserCircle, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
 
 export const Sidebar: React.FC = () => {
-  const { currentView, setCurrentView, currentUser } = useApp();
+  const { currentView, setCurrentView, currentUser, currentAgency, logout } = useApp();
+
+  // Safety check
+  if (!currentUser) return null;
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
     <button
@@ -18,13 +21,24 @@ export const Sidebar: React.FC = () => {
     </button>
   );
 
+  const handleLogout = () => {
+      if(confirm('Deseja realmente sair do sistema?')) {
+          logout();
+      }
+  }
+
   return (
     <div className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col fixed left-0 top-0 z-10">
-      <div className="p-6 border-b border-slate-100 flex items-center space-x-2">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <Building2 className="text-white" size={20} />
+      <div className="p-6 border-b border-slate-100">
+        <div className="flex items-center space-x-2 mb-1">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Building2 className="text-white" size={20} />
+            </div>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">ImobERP</h1>
         </div>
-        <h1 className="text-xl font-bold text-slate-800">ImobERP</h1>
+        {currentAgency && (
+            <p className="text-xs text-slate-500 font-medium pl-10 truncate">{currentAgency.name}</p>
+        )}
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-2">
@@ -54,7 +68,11 @@ export const Sidebar: React.FC = () => {
             <p className="text-sm font-semibold text-slate-800 truncate">{currentUser.name}</p>
             <p className="text-xs text-slate-500 truncate">{currentUser.role}</p>
           </div>
-          <button className="text-slate-400 hover:text-red-500">
+          <button 
+            onClick={handleLogout}
+            className="text-slate-400 hover:text-red-500 transition p-1" 
+            title="Sair"
+          >
             <LogOut size={18} />
           </button>
         </div>
