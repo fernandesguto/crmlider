@@ -40,10 +40,10 @@ export const Login: React.FC = () => {
       setError('');
       setIsSubmitting(true);
       
-      const success = await registerAgency(regAgencyName, regAdminName, regEmail, regPassword);
+      const result = await registerAgency(regAgencyName, regAdminName, regEmail, regPassword);
       
-      if (!success) {
-          setError('Erro ao criar imobiliária. Tente novamente.');
+      if (!result.success) {
+          setError(result.message || 'Erro ao criar imobiliária. Tente novamente.');
           setIsSubmitting(false);
       }
   };

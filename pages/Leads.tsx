@@ -1,13 +1,27 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2 } from 'lucide-react';
+import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle } from 'lucide-react';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
-  const { leads, addLead, updateLead, updateLeadStatus, properties, currentAgency } = useApp();
+  const { leads, addLead, updateLead, updateLeadStatus, deleteLead, properties, currentAgency } = useApp();
+  
+  // Filter States
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [propertyFilter, setPropertyFilter] = useState<string>('');
+
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Property View Modal
+  const [viewProperty, setViewProperty] = useState<Property | null>(null);
+
+  // Delete Modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
   
   // Form State
   const [formData, setFormData] = useState<Partial<Lead>>({
@@ -20,10 +34,22 @@ export const Leads: React.FC = () => {
     notes: ''
   });
 
-  const filteredLeads = leads.filter(lead =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = !statusFilter || lead.status === statusFilter;
+    
+    const matchesProperty = !propertyFilter || lead.interestedInPropertyIds.includes(propertyFilter);
+
+    return matchesSearch && matchesStatus && matchesProperty;
+  });
+
+  const clearFilters = () => {
+      setSearchTerm('');
+      setStatusFilter('');
+      setPropertyFilter('');
+  };
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {
@@ -52,6 +78,19 @@ export const Leads: React.FC = () => {
       setShowModal(true);
   };
 
+  const handleDeleteClick = (lead: Lead) => {
+      setLeadToDelete(lead);
+      setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+      if (leadToDelete) {
+          await deleteLead(leadToDelete.id);
+      }
+      setDeleteModalOpen(false);
+      setLeadToDelete(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
@@ -64,7 +103,7 @@ export const Leads: React.FC = () => {
         addLead({
             id: Date.now().toString(),
             name: formData.name!,
-            email: formData.email!,
+            email: formData.email || '',
             phone: formData.phone || '',
             type: formData.type as 'Buyer' | 'Seller' || 'Buyer',
             status: formData.status as LeadStatus || LeadStatus.NEW,
@@ -98,89 +137,186 @@ export const Leads: React.FC = () => {
     return properties.filter(p => ids.includes(p.id));
   };
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  };
+
   return (
-    <div className="p-8 h-screen overflow-y-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 md:p-8 h-screen overflow-y-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-           <h1 className="text-3xl font-bold text-slate-800">Gerenciamento de Leads</h1>
-           <p className="text-slate-500">Acompanhe potenciais clientes e vendas</p>
+           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Gerenciamento de Leads</h1>
+           <p className="text-slate-500 text-sm md:text-base">Acompanhe potenciais clientes e vendas</p>
         </div>
-        <button onClick={handleOpenCreate} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+        <button onClick={handleOpenCreate} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition shadow-md">
           <Plus size={20} /> <span>Novo Lead</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 p-4 flex items-center">
-        <Search className="text-slate-400 mr-3" size={20} />
-        <input
-          type="text"
-          placeholder="Buscar leads por nome ou email..."
-          className="flex-1 outline-none text-slate-900 bg-white"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      {/* Barra de Filtros */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 p-4">
+        <div className="flex items-center space-x-2 mb-3 text-slate-500 font-bold uppercase text-xs tracking-wider">
+            <Filter size={14} /> <span>Filtros</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Busca Texto */}
+            <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+                <Search className="text-slate-400 mr-2 flex-shrink-0" size={18} />
+                <input
+                type="text"
+                placeholder="Buscar por nome..."
+                className="w-full bg-transparent py-2.5 outline-none text-sm text-slate-900"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            {/* Filtro Status */}
+            <select
+                className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+            >
+                <option value="">Todas as Etapas</option>
+                {Object.values(LeadStatus).map(status => (
+                    <option key={status} value={status}>{status}</option>
+                ))}
+            </select>
+
+            {/* Filtro Imóvel */}
+            <select
+                className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
+                value={propertyFilter}
+                onChange={(e) => setPropertyFilter(e.target.value)}
+            >
+                <option value="">Todos os Imóveis</option>
+                {properties.map(p => (
+                    <option key={p.id} value={p.id}>{p.title}</option>
+                ))}
+            </select>
+
+            {/* Botão Limpar */}
+            {(searchTerm || statusFilter || propertyFilter) && (
+                <button 
+                    onClick={clearFilters}
+                    className="flex items-center justify-center space-x-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm py-2.5 border border-transparent hover:border-red-200"
+                >
+                    <X size={16} /> <span>Limpar</span>
+                </button>
+            )}
+        </div>
+        <div className="mt-3 text-right text-xs text-slate-400">
+            {filteredLeads.length} leads encontrados
+        </div>
       </div>
 
       <div className="space-y-4">
-        {filteredLeads.map(lead => (
-          <div key={lead.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center group">
-            <div className="flex-1 w-full">
-              <div className="flex justify-between md:justify-start items-center space-x-3 mb-2">
-                <h3 className="text-lg font-bold text-slate-800">{lead.name}</h3>
-                <div className="flex space-x-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${lead.type === 'Buyer' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
-                    {lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getStatusColor(lead.status)}`}>
-                    {lead.status}
-                    </span>
+        {filteredLeads.map(lead => {
+          const isFromSite = lead.notes?.includes('Site Público');
+          // Destaque verde se for NOVO (seja do site ou cadastrado manualmente)
+          const isNew = lead.status === LeadStatus.NEW;
+          
+          return (
+            <div 
+                key={lead.id} 
+                className={`rounded-xl shadow-sm border p-4 md:p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center group transition-all hover:shadow-md gap-4 ${
+                    isNew ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'
+                }`}
+            >
+                <div className="flex-1 w-full min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {isFromSite && (
+                                <span className={`flex items-center text-xs font-bold px-2 py-0.5 rounded shadow-sm border ${isNew ? 'text-emerald-700 bg-white border-emerald-200' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                                    <Globe size={12} className="mr-1" /> Site
+                                </span>
+                            )}
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${lead.type === 'Buyer' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
+                            {lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getStatusColor(lead.status)}`}>
+                            {lead.status}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-sm text-slate-500 mb-3">
+                        <div className="flex items-center space-x-1 truncate"><Mail size={14} className="flex-shrink-0" /> <span className="truncate">{lead.email || 'Sem email'}</span></div>
+                        <div className="flex items-center space-x-1"><Phone size={14} className="flex-shrink-0" /> <span>{lead.phone || 'Sem fone'}</span></div>
+                        <div className="flex items-center space-x-1"><Clock size={14} className="flex-shrink-0" /> <span>{new Date(lead.createdAt).toLocaleDateString()}</span></div>
+                    </div>
+                    
+                    {/* Resumo de Interesses */}
+                    {lead.interestedInPropertyIds.length > 0 && (
+                        <div className="mt-3 flex items-center space-x-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+                        <span className="text-xs font-medium text-slate-500 flex items-center flex-shrink-0"><Home size={12} className="mr-1"/> Interesse:</span>
+                        {getInterestedProperties(lead.interestedInPropertyIds).map(p => (
+                            <button 
+                                key={p.id} 
+                                onClick={() => setViewProperty(p)}
+                                className={`text-xs px-2 py-1 rounded truncate max-w-[200px] border flex items-center transition hover:shadow-sm flex-shrink-0 ${
+                                    isFromSite 
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200 font-medium hover:bg-emerald-200' 
+                                        : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                }`}
+                                title="Ver Detalhes do Imóvel"
+                            >
+                                <Eye size={10} className="mr-1.5 opacity-50 flex-shrink-0"/>
+                                <span className="truncate">{p.title}</span>
+                            </button>
+                        ))}
+                        </div>
+                    )}
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-                <div className="flex items-center space-x-1"><Mail size={14} /> <span>{lead.email}</span></div>
-                <div className="flex items-center space-x-1"><Phone size={14} /> <span>{lead.phone}</span></div>
-                <div className="flex items-center space-x-1"><Clock size={14} /> <span>{new Date(lead.createdAt).toLocaleDateString()}</span></div>
-              </div>
-              
-              {/* Resumo de Interesses */}
-              {lead.interestedInPropertyIds.length > 0 && (
-                <div className="mt-3 flex items-center space-x-2 overflow-x-auto">
-                  <span className="text-xs font-medium text-slate-500 flex items-center flex-shrink-0"><Home size={12} className="mr-1"/> Interesse:</span>
-                  {getInterestedProperties(lead.interestedInPropertyIds).map(p => (
-                     <span key={p.id} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded truncate max-w-[150px]">
-                       {p.title}
-                     </span>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <div className="mt-4 md:mt-0 flex items-center space-x-3 w-full md:w-auto justify-end">
-              <select
-                value={lead.status}
-                onChange={(e) => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
-                className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none"
-              >
-                {Object.values(LeadStatus).map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-              
-              <button 
-                onClick={() => handleOpenEdit(lead)}
-                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                title="Editar Lead"
-              >
-                <Edit size={20} />
-              </button>
+                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 flex-wrap">
+                    <select
+                        value={lead.status}
+                        onChange={(e) => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
+                        className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none cursor-pointer flex-1 lg:w-40 min-w-[140px]"
+                    >
+                        {Object.values(LeadStatus).map(status => (
+                        <option key={status} value={status}>{status}</option>
+                        ))}
+                    </select>
+                    
+                    {lead.phone && (
+                        <a 
+                            href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex-shrink-0 shadow-sm"
+                            title="Conversar no WhatsApp"
+                        >
+                            <MessageCircle size={18} />
+                        </a>
+                    )}
+
+                    <button 
+                        onClick={() => handleOpenEdit(lead)}
+                        className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition border border-slate-200 flex-shrink-0"
+                        title="Editar Lead"
+                    >
+                        <Edit size={18} />
+                    </button>
+                    <button 
+                        onClick={() => handleDeleteClick(lead)}
+                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-slate-200 flex-shrink-0"
+                        title="Excluir Lead"
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
+       {/* MODAL EDITAR / CRIAR LEAD */}
        {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={24}/></button>
             
             <h2 className="text-xl font-bold mb-6 text-slate-900 flex items-center">
@@ -202,9 +338,8 @@ export const Leads: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email <span className="text-slate-400 font-normal text-xs">(Opcional)</span></label>
                     <input 
-                        required 
                         type="email"
                         value={formData.email} 
                         onChange={e => setFormData({...formData, email: e.target.value})} 
@@ -320,6 +455,55 @@ export const Leads: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL VISUALIZAÇÃO DE IMÓVEL */}
+      {viewProperty && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="relative h-56 bg-slate-200">
+                      <img src={viewProperty.images?.[0] || 'https://via.placeholder.com/600'} alt={viewProperty.title} className="w-full h-full object-cover" />
+                      <button 
+                          onClick={() => setViewProperty(null)} 
+                          className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition"
+                      >
+                          <X size={20} />
+                      </button>
+                      <div className="absolute bottom-3 left-3 flex gap-2">
+                          <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow">{viewProperty.type}</span>
+                          <span className="bg-white/90 text-slate-800 text-xs font-bold px-2 py-1 rounded shadow font-mono">#{viewProperty.code}</span>
+                      </div>
+                  </div>
+                  <div className="p-6">
+                      <h3 className="text-xl font-bold text-slate-800 leading-tight mb-1">{viewProperty.title}</h3>
+                      <p className="text-sm text-slate-500 flex items-center mb-4"><MapPin size={14} className="mr-1"/> {viewProperty.neighborhood}, {viewProperty.city}</p>
+                      
+                      <div className="flex items-center justify-between text-slate-600 text-sm py-4 border-y border-slate-100 mb-4">
+                          <span className="flex items-center"><BedDouble size={16} className="mr-1 text-blue-500"/> {viewProperty.bedrooms}</span>
+                          <span className="flex items-center"><Bath size={16} className="mr-1 text-blue-500"/> {viewProperty.bathrooms}</span>
+                          <span className="flex items-center"><Square size={16} className="mr-1 text-blue-500"/> {viewProperty.area}m²</span>
+                      </div>
+
+                      <p className="text-2xl font-bold text-blue-600 mb-4">{formatCurrency(viewProperty.price)}</p>
+                      
+                      <div className="flex justify-end">
+                          <button onClick={() => setViewProperty(null)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-medium transition">
+                              Fechar
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Lead"
+        message={`Tem certeza que deseja excluir o lead ${leadToDelete?.name}?`}
+        confirmText="Excluir"
+        isDestructive
+      />
     </div>
   );
 };

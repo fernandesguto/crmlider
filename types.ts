@@ -1,8 +1,13 @@
+
 export enum PropertyType {
   SALE = 'Venda',
   RENTAL_ANNUAL = 'Locação Anual',
   RENTAL_SEASONAL = 'Locação Temporada',
 }
+
+export type PropertyCategory = 'Residencial' | 'Comercial' | 'Terreno / Área' | 'Rural' | 'Industrial';
+
+export type PropertySubtype = 'Casa' | 'Apartamento' | 'Sala' | 'Loja' | 'Prédio' | 'Galpão' | 'Terreno' | 'Chácara';
 
 export enum LeadStatus {
   NEW = 'Novo',
@@ -17,22 +22,46 @@ export interface Agency {
   id: string;
   name: string;
   createdAt?: string;
+  logoUrl?: string;
+  address?: string; 
+  phone?: string;   
 }
 
 export interface Property {
   id: string;
+  code?: number; // Código sequencial (ex: 1, 2, 3...)
   title: string;
   description: string;
-  type: PropertyType;
+  type: PropertyType; // Venda ou Locação
+  category: PropertyCategory; 
+  subtype: PropertySubtype; 
   price: number;
-  address: string;
+  
+  // Localização
+  address: string; // Logradouro / Rua
+  neighborhood?: string; // Bairro
+  city?: string; // Cidade
+  state?: string; // Estado (UF)
+
+  // Dados do Proprietário e Internos
+  ownerName?: string;
+  ownerPhone?: string;
+  internalNotes?: string;
+
+  // Status de Venda e Financeiro
+  status?: 'Active' | 'Sold';
+  soldAt?: string;
+  soldToLeadId?: string; // ID do Lead se vendido internamente
+  salePrice?: number; // Valor final que foi fechado o negócio
+  commissionValue?: number; // Valor da comissão recebida
+
   bedrooms: number;
   bathrooms: number;
   area: number;
-  images: string[]; // Alterado de imageUrl string para array
+  images: string[];
   features: string[];
-  brokerId: string; // The user managing this property
-  agencyId: string; // Multi-tenant ID
+  brokerId: string;
+  agencyId: string;
 }
 
 export interface Lead {
@@ -40,12 +69,12 @@ export interface Lead {
   name: string;
   email: string;
   phone: string;
-  type: 'Buyer' | 'Seller'; // Comprador ou Proprietário
+  type: 'Buyer' | 'Seller';
   status: LeadStatus;
   interestedInPropertyIds: string[];
   notes: string;
   createdAt: string;
-  agencyId: string; // Multi-tenant ID
+  agencyId: string;
 }
 
 export interface Task {
@@ -54,18 +83,20 @@ export interface Task {
   description?: string;
   dueDate: string;
   completed: boolean;
-  assignedTo: string; // User ID
-  agencyId: string; // Multi-tenant ID
+  assignedTo: string;
+  leadId?: string;
+  propertyId?: string; // Imóvel vinculado
+  agencyId: string;
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Campo de senha adicionado
+  password?: string;
   role: 'Admin' | 'Broker';
   avatarUrl: string;
-  agencyId: string; // Multi-tenant ID
+  agencyId: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'PUBLIC_SITE';
+export type ViewState = 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS';
