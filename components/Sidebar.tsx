@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ViewState, LeadStatus } from '../types';
 
@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { currentView, setCurrentView, currentUser, currentAgency, logout, leads } = useApp();
+  const { currentView, setCurrentView, currentUser, currentAgency, logout, leads, isSuperAdmin } = useApp();
 
   // Safety check
   if (!currentUser) return null;
@@ -18,7 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   // Conta leads com status 'Novo'
   const newLeadsCount = leads ? leads.filter(l => l.status === LeadStatus.NEW).length : 0;
 
-  const NavItem = ({ view, icon: Icon, label, badge }: { view: ViewState, icon: any, label: string, badge?: number }) => (
+  const NavItem = ({ view, icon: Icon, label, badge, color }: { view: ViewState, icon: any, label: string, badge?: number, color?: string }) => (
     <button
       onClick={() => {
           setCurrentView(view);
@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       }}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 ${
         currentView === view ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-      }`}
+      } ${color ? color : ''}`}
     >
       <div className="flex items-center space-x-3">
         <Icon size={20} />
@@ -92,12 +92,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                 <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
                 <NavItem view="PROPERTIES" icon={Building2} label="Imóveis" />
+                <NavItem view="SALES" icon={DollarSign} label="Vendas" />
                 <NavItem view="RENTALS" icon={Key} label="Locações" />
                 <NavItem view="LEADS" icon={Users} label="Leads & Clientes" badge={newLeadsCount} />
                 <NavItem view="TASKS" icon={CheckSquare} label="Tarefas" />
                 <NavItem view="USERS" icon={UserCircle} label="Equipe" />
                 <NavItem view="SETTINGS" icon={Settings} label="Configurações" />
                 
+                {isSuperAdmin && (
+                    <div className="pt-4 mt-4 border-t border-slate-100">
+                        <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Administração</p>
+                        <button
+                            onClick={() => { setCurrentView('SUPER_ADMIN'); onClose(); }}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+                                currentView === 'SUPER_ADMIN' ? 'bg-red-600 text-white shadow-md' : 'text-red-600 hover:bg-red-50'
+                            }`}
+                        >
+                            <ShieldAlert size={20} />
+                            <span className="font-medium">Painel Master</span>
+                        </button>
+                    </div>
+                )}
+
                 <div className="pt-4 mt-4 border-t border-slate-100">
                     <button
                     onClick={() => { setCurrentView('PUBLIC'); onClose(); }}
