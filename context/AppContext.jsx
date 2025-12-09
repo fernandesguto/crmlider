@@ -1,99 +1,38 @@
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult } from '../types';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as DB from '../services/db';
+import { LeadStatus } from '../types';
 
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-interface AppContextType {
-    currentUser: User | null;
-    currentAgency: Agency | null;
-    properties: Property[];
-    leads: Lead[];
-    tasks: Task[];
-    users: User[];
-    messages: Message[];
-    currentView: ViewState;
-    setCurrentView: (view: ViewState) => void;
-    isLoading: boolean;
-    themeColor: string;
-    setThemeColor: (color: string) => void;
-    darkMode: boolean;
-    setDarkMode: (mode: boolean) => void;
-    
-    // Auth
-    login: (email: string, password: string) => Promise<OperationResult>;
-    logout: () => void;
-    registerAgency: (agencyName: string, adminName: string, email: string, phone: string, password: string) => Promise<OperationResult>;
-    setAgency: (agency: Agency) => void; // Nova função exposta
-    
-    // CRUD
-    addProperty: (property: Property) => Promise<void>;
-    updateProperty: (property: Property) => Promise<void>;
-    deleteProperty: (id: string) => Promise<void>;
-    markPropertyAsSold: (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string) => Promise<void>;
-    reactivateProperty: (id: string) => Promise<void>;
-    readjustRental: (id: string, newRent: number, newComm: number, date: string) => Promise<void>;
-    getNextPropertyCode: () => number;
-    
-    addLead: (lead: Lead) => Promise<void>;
-    updateLead: (lead: Lead) => Promise<void>;
-    updateLeadStatus: (id: string, status: LeadStatus) => Promise<void>;
-    deleteLead: (id: string) => Promise<void>;
-    
-    addTask: (task: Task) => Promise<void>;
-    updateTask: (task: Task) => Promise<void>;
-    toggleTaskCompletion: (id: string) => Promise<void>;
-    deleteTask: (id: string) => Promise<void>;
-    
-    createAgencyUser: (userData: Partial<User>) => Promise<OperationResult>;
-    updateUser: (user: User) => Promise<OperationResult>;
-    deleteUser: (id: string) => Promise<OperationResult>;
-    
-    updateAgency: (agency: Agency) => Promise<void>;
-    
-    // Messages
-    loadMessages: (leadId: string) => Promise<void>;
-    addMessage: (msg: any) => Promise<void>;
-    
-    // Notifications
-    notificationTask: Task | null;
-    notificationLead: Lead | null;
-    dismissNotification: () => void;
+const AppContext = createContext(undefined);
 
-    isSuperAdmin: boolean;
-}
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AppProvider = ({ children }) => {
     // Global State
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [currentAgency, setCurrentAgency] = useState<Agency | null>(null);
-    const [currentView, setCurrentView] = useState<ViewState>('LANDING');
+    const [currentUser, setCurrentUser] = useState(null);
+    const [currentAgency, setCurrentAgency] = useState(null);
+    const [currentView, setCurrentView] = useState('LANDING');
     const [isLoading, setIsLoading] = useState(true);
     
     // Data State
-    const [properties, setProperties] = useState<Property[]>([]);
-    const [leads, setLeads] = useState<Lead[]>([]);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [properties, setProperties] = useState([]);
+    const [leads, setLeads] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [messages, setMessages] = useState([]);
 
     // Theme
     const [themeColor, setThemeColor] = useState('#3b82f6');
     const [darkMode, setDarkMode] = useState(false);
 
     // Notifications
-    const [notificationTask, setNotificationTask] = useState<Task | null>(null);
-    const [notificationLead, setNotificationLead] = useState<Lead | null>(null);
+    const [notificationTask, setNotificationTask] = useState(null);
+    const [notificationLead, setNotificationLead] = useState(null);
 
     // Auth Initialization
     useEffect(() => {
         const initAuth = async () => {
             setIsLoading(true);
             
-            // Load theme preferences
             const savedColor = localStorage.getItem('imob_theme_color');
             const savedDark = localStorage.getItem('imob_dark_mode');
             if (savedColor) setThemeColor(savedColor);
@@ -102,92 +41,71 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const savedUserId = localStorage.getItem('imob_user_id');
             if (savedUserId) {
                 try {
-                    // Try to fetch user
-                    const users = await DB.getAll<User>('users', { column: 'id', value: savedUserId });
+                    const users = await DB.getAll('users', { column: 'id', value: savedUserId });
                     if (users && users.length > 0) {
                         const user = users[0];
                         setCurrentUser(user);
                         
-                        // Load Agency
-                        const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
+                        const agencies = await DB.getAll('agencies', { column: 'id', value: user.agencyId });
                         if (agencies && agencies.length > 0) {
                             setCurrentAgency(agencies[0]);
                             setCurrentView('DASHBOARD');
                         }
                     } else {
-                        // User ID invalid (maybe deleted), clear storage
                         localStorage.removeItem('imob_user_id');
                     }
                 } catch (error) {
                     console.error("Auth init error", error);
                 }
-            } else {
-                // Not logged in
             }
             setIsLoading(false);
         };
         
-        // Seed database if empty
         DB.seedDatabase().then(() => initAuth());
     }, []);
 
-    // Theme persistence
     useEffect(() => {
         localStorage.setItem('imob_theme_color', themeColor);
         localStorage.setItem('imob_dark_mode', String(darkMode));
     }, [themeColor, darkMode]);
 
-    // Data Loading when Logged In
     useEffect(() => {
         if (!currentUser || !currentAgency) return;
 
         const loadData = async () => {
             const agencyId = currentAgency.id;
             
-            // Load all data for this agency
-            const props = await DB.getAll<Property>('properties', { column: 'agencyId', value: agencyId });
+            const props = await DB.getAll('properties', { column: 'agencyId', value: agencyId });
             setProperties(props || []);
 
-            const lds = await DB.getAll<Lead>('leads', { column: 'agencyId', value: agencyId });
+            const lds = await DB.getAll('leads', { column: 'agencyId', value: agencyId });
             setLeads(lds || []);
 
-            const tsks = await DB.getAll<Task>('tasks', { column: 'agencyId', value: agencyId });
+            const tsks = await DB.getAll('tasks', { column: 'agencyId', value: agencyId });
             setTasks(tsks || []);
 
-            const usrs = await DB.getAll<User>('users', { column: 'agencyId', value: agencyId });
+            const usrs = await DB.getAll('users', { column: 'agencyId', value: agencyId });
             setUsers(usrs || []);
-            
-            // Check for overdue tasks for notifications (mock logic)
-            const dueTasks = tsks.filter(t => !t.completed && new Date(t.dueDate) <= new Date());
-            if (dueTasks.length > 0) {
-                // Notify random overdue task just for demo
-                // setNotificationTask(dueTasks[0]);
-            }
         };
 
         loadData();
     }, [currentUser, currentAgency]);
 
-    // Polling for New Leads (Real-time simulation)
+    // Polling for New Leads
     useEffect(() => {
         if (!currentUser || !currentAgency) return;
 
         const interval = setInterval(async () => {
-            // Check for leads created in the last 30 seconds
             const now = new Date();
             const thirtySecondsAgo = new Date(now.getTime() - 30000);
             
             try {
-                // Re-fetch leads to check for updates
-                const latestLeads = await DB.getAll<Lead>('leads', { column: 'agencyId', value: currentAgency.id });
+                const latestLeads = await DB.getAll('leads', { column: 'agencyId', value: currentAgency.id });
                 
-                // If count changed or we find a very new lead
                 if (latestLeads.length > leads.length) {
-                    // Find the new one
                     const newLead = latestLeads.find(l => new Date(l.createdAt) > thirtySecondsAgo);
                     if (newLead) {
                         setNotificationLead(newLead);
-                        // Play sound
                         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                         audio.play().catch(e => console.log('Audio play failed', e));
                     }
@@ -196,21 +114,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } catch (e) {
                 // silent fail
             }
-        }, 30000); // Poll every 30s
+        }, 30000);
 
         return () => clearInterval(interval);
     }, [currentUser, currentAgency, leads]);
 
     // --- ACTIONS ---
 
-    const login = async (email: string, password: string): Promise<OperationResult> => {
+    const login = async (email, password) => {
         try {
-            const users = await DB.getAll<User>('users', { column: 'email', value: email });
+            const users = await DB.getAll('users', { column: 'email', value: email });
             const user = users.find(u => u.password === password || u.password === undefined); 
             
             if (user) {
-                // Load Agency to check approval
-                const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
+                const agencies = await DB.getAll('agencies', { column: 'id', value: user.agencyId });
                 
                 if (!agencies || agencies.length === 0) {
                     return { success: false, message: 'Agência não encontrada.' };
@@ -218,9 +135,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
                 const agency = agencies[0];
 
-                // Check Approval Logic
                 if (!agency.isApproved) {
-                    // Check Trial
                     if (agency.trialExpiresAt) {
                         const today = new Date();
                         const expiration = new Date(agency.trialExpiresAt);
@@ -229,7 +144,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                             return { success: false, message: 'Período de teste expirado. Entre em contato para liberar o acesso.' };
                         }
                     } else {
-                        // No trial date set, and not approved
                         return { success: false, message: 'Seu cadastro está em análise. Aguarde a aprovação do administrador.' };
                     }
                 }
@@ -239,7 +153,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setCurrentAgency(agency);
                 setCurrentView('DASHBOARD');
                 
-                // Update login count
                 await DB.updateItem('users', { ...user, loginCount: (user.loginCount || 0) + 1 });
                 
                 return { success: true };
@@ -254,18 +167,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         localStorage.removeItem('imob_user_id');
         setCurrentUser(null);
         setCurrentAgency(null);
-        setCurrentView('LANDING'); // Volta para a Landing Page
+        setCurrentView('LANDING');
         setProperties([]);
         setLeads([]);
         setTasks([]);
         setUsers([]);
-        window.location.reload(); // Force reload to clear states
+        window.location.reload();
     };
 
-    const registerAgency = async (agencyName: string, adminName: string, email: string, phone: string, password: string): Promise<OperationResult> => {
+    const registerAgency = async (agencyName, adminName, email, phone, password) => {
         try {
-            // Check duplicate email first
-            const existingUsers = await DB.getAll<User>('users', { column: 'email', value: email });
+            const existingUsers = await DB.getAll('users', { column: 'email', value: email });
             if (existingUsers.length > 0) {
                 return { success: false, message: 'Este e-mail já está em uso.' };
             }
@@ -273,20 +185,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const agencyId = uuid();
             const userId = uuid();
 
-            // Set Trial Date: Now + 3 Days
             const trialDate = new Date();
             trialDate.setDate(trialDate.getDate() + 3);
 
-            const newAgency: Agency = {
+            const newAgency = {
                 id: agencyId,
                 name: agencyName,
                 createdAt: new Date().toISOString(),
-                isApproved: false, // Default blocked until approved or trial check
+                isApproved: false,
                 trialExpiresAt: trialDate.toISOString(),
                 phone: phone
             };
             
-            const newAdmin: User = {
+            const newAdmin = {
                 id: userId,
                 name: adminName,
                 email,
@@ -302,49 +213,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await DB.addItem('users', newAdmin);
 
             return { success: true, message: 'Conta criada! Você tem 3 dias de teste grátis liberados. Faça login para começar.' };
-        } catch (e: any) {
+        } catch (e) {
              if (e.code === '23505') return { success: false, message: 'Este e-mail já está cadastrado.' };
              return { success: false, message: e.message || 'Erro ao criar conta.' };
         }
     };
 
-    // --- PROPERTY ACTIONS ---
-
-    const addProperty = async (property: Property) => {
-        // Calculate new code
+    const addProperty = async (property) => {
         const nextCode = getNextPropertyCode();
         const propertyWithCode = { ...property, code: nextCode };
         
-        const saved = await DB.addItem<Property>('properties', propertyWithCode);
+        const saved = await DB.addItem('properties', propertyWithCode);
         setProperties(prev => [...prev, saved]);
     };
 
-    const updateProperty = async (property: Property) => {
+    const updateProperty = async (property) => {
         await DB.updateItem('properties', property);
         setProperties(prev => prev.map(p => p.id === property.id ? property : p));
     };
 
-    const deleteProperty = async (id: string) => {
+    const deleteProperty = async (id) => {
         try {
-            // 1. Get Property to find images
             const propertyToDelete = properties.find(p => p.id === id);
-            
-            // 2. Delete from DB
             await DB.deleteItem('properties', id);
-            
-            // 3. Remove form State
             setProperties(prev => prev.filter(p => p.id !== id));
-
-            // 4. Delete images from Storage (Fire and Forget)
             if (propertyToDelete && propertyToDelete.images && propertyToDelete.images.length > 0) {
                 DB.deleteStorageImages(propertyToDelete.images);
             }
-        } catch (error: any) {
+        } catch (error) {
             alert(error.message);
         }
     };
 
-    const markPropertyAsSold = async (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string) => {
+    const markPropertyAsSold = async (id, leadId, salePrice, commission, soldByUserId) => {
         const update = {
             id,
             status: 'Sold',
@@ -354,17 +255,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             salePrice,
             commissionValue: commission
         };
-        // @ts-ignore - Partial update
         await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } as Property : p));
+        setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } : p));
         
-        // If sold to lead, update lead status
         if (leadId) {
             updateLeadStatus(leadId, LeadStatus.CLOSED);
         }
     };
 
-    const reactivateProperty = async (id: string) => {
+    const reactivateProperty = async (id) => {
         const update = {
             id,
             status: 'Active',
@@ -374,13 +273,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             salePrice: null,
             commissionValue: null
         };
-        // @ts-ignore
         await DB.updateItem('properties', update);
         setProperties(prev => prev.map(p => p.id === id ? { ...p, status: 'Active', soldAt: undefined, soldToLeadId: undefined, soldByUserId: undefined, salePrice: undefined, commissionValue: undefined } : p));
     };
 
-    const readjustRental = async (id: string, newRent: number, newComm: number, date: string) => {
-        // Find property to get current notes
+    const readjustRental = async (id, newRent, newComm, date) => {
         const prop = properties.find(p => p.id === id);
         const oldRent = prop?.salePrice || 0;
         const oldComm = prop?.commissionValue || 0;
@@ -394,7 +291,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             commissionValue: newComm,
             internalNotes: currentNotes + note
         };
-        // @ts-ignore
         await DB.updateItem('properties', update);
         setProperties(prev => prev.map(p => p.id === id ? { ...p, salePrice: newRent, commissionValue: newComm, internalNotes: (p.internalNotes || '') + note } : p));
     };
@@ -405,48 +301,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return max + 1;
     };
 
-    // --- LEAD ACTIONS ---
-
-    const addLead = async (lead: Lead) => {
-        const saved = await DB.addItem<Lead>('leads', lead);
-        setLeads(prev => [saved, ...prev]); // Prepend
-        setNotificationLead(saved); // Trigger notification
+    const addLead = async (lead) => {
+        const saved = await DB.addItem('leads', lead);
+        setLeads(prev => [saved, ...prev]);
+        setNotificationLead(saved);
     };
 
-    const updateLead = async (lead: Lead) => {
+    const updateLead = async (lead) => {
         await DB.updateItem('leads', lead);
         setLeads(prev => prev.map(l => l.id === lead.id ? lead : l));
     };
 
-    const updateLeadStatus = async (id: string, status: LeadStatus) => {
+    const updateLeadStatus = async (id, status) => {
         await DB.updateItem('leads', { id, status });
         setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
     };
 
-    const deleteLead = async (id: string) => {
+    const deleteLead = async (id) => {
         try {
             await DB.deleteItem('leads', id);
             setLeads(prev => prev.filter(l => l.id !== id));
-        } catch (error: any) {
+        } catch (error) {
             alert(error.message);
         }
     };
 
-    // --- TASK ACTIONS ---
-
-    const addTask = async (task: Task) => {
-        const saved = await DB.addItem<Task>('tasks', task);
+    const addTask = async (task) => {
+        const saved = await DB.addItem('tasks', task);
         setTasks(prev => [...prev, saved]);
-        // Notify just to show it works
         setNotificationTask(saved);
     };
 
-    const updateTask = async (task: Task) => {
+    const updateTask = async (task) => {
         await DB.updateItem('tasks', task);
         setTasks(prev => prev.map(t => t.id === task.id ? task : t));
     };
 
-    const toggleTaskCompletion = async (id: string) => {
+    const toggleTaskCompletion = async (id) => {
         const task = tasks.find(t => t.id === id);
         if (task) {
             const newStatus = !task.completed;
@@ -455,84 +346,77 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const deleteTask = async (id: string) => {
+    const deleteTask = async (id) => {
         try {
             await DB.deleteItem('tasks', id);
             setTasks(prev => prev.filter(t => t.id !== id));
-        } catch (error: any) {
+        } catch (error) {
             alert(error.message);
         }
     };
 
-    // --- USER ACTIONS ---
-
-    const createAgencyUser = async (userData: Partial<User>): Promise<OperationResult> => {
+    const createAgencyUser = async (userData) => {
         if (!currentAgency) return { success: false, message: 'Sem agência.' };
         try {
-            // Check Manual Duplication
-            const existingUsers = await DB.getAll<User>('users', { column: 'email', value: userData.email! });
+            const existingUsers = await DB.getAll('users', { column: 'email', value: userData.email });
             if (existingUsers && existingUsers.length > 0) {
                 return { success: false, message: 'Este e-mail já está em uso.' };
             }
 
-            const newUser: User = {
+            const newUser = {
                 id: uuid(),
-                name: userData.name!,
-                email: userData.email!,
-                password: userData.password!,
+                name: userData.name,
+                email: userData.email,
+                password: userData.password,
                 phone: userData.phone,
                 role: userData.role || 'Broker',
                 avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || '')}&background=random`,
                 agencyId: currentAgency.id,
                 loginCount: 0
             };
-            const savedUser = await DB.addItem<User>('users', newUser);
+            const savedUser = await DB.addItem('users', newUser);
             setUsers(prev => [...prev, savedUser]);
             return { success: true };
-        } catch (error: any) {
+        } catch (error) {
             if (error.code === '23505') return { success: false, message: 'Este e-mail já está em uso por outro usuário.' };
-            return { success: false, message: typeof error.message === 'string' ? error.message : 'Erro ao criar usuário.' };
+            return { success: false, message: error.message || 'Erro ao criar usuário.' };
         }
     };
 
-    const updateUser = async (user: User): Promise<OperationResult> => {
+    const updateUser = async (user) => {
         try {
             await DB.updateItem('users', user);
             setUsers(prev => prev.map(u => u.id === user.id ? user : u));
             if (currentUser?.id === user.id) setCurrentUser(user);
             return { success: true };
-        } catch (e: any) {
+        } catch (e) {
             if (e.code === '23505') return { success: false, message: 'Este e-mail já está em uso por outro usuário.' };
             return { success: false, message: e.message };
         }
     };
 
-    const deleteUser = async (id: string): Promise<OperationResult> => {
+    const deleteUser = async (id) => {
         try {
             await DB.deleteItem('users', id);
             setUsers(prev => prev.filter(u => u.id !== id));
             return { success: true };
-        } catch (e: any) {
+        } catch (e) {
             return { success: false, message: e.message };
         }
     };
 
-    const updateAgency = async (agency: Agency) => {
+    const updateAgency = async (agency) => {
         await DB.updateItem('agencies', agency);
         setCurrentAgency(agency);
     };
 
-    // --- MESSAGES ---
-
-    const loadMessages = async (leadId: string) => {
-        setMessages([]); // Mock empty
+    const loadMessages = async (leadId) => {
+        setMessages([]); 
     };
 
-    const addMessage = async (msg: any) => {
+    const addMessage = async (msg) => {
         setMessages(prev => [...prev, msg]);
     };
-
-    // --- NOTIFICATIONS ---
     
     const dismissNotification = () => {
         setNotificationTask(null);
