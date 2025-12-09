@@ -5,7 +5,7 @@ export enum PropertyType {
   RENTAL_SEASONAL = 'Locação Temporada',
 }
 
-export type PropertyCategory = 'Residencial' | 'Comercial' | 'Terreno / Área' | 'Rural' | 'Industrial';
+export type PropertyCategory = 'Residencial' | 'Comercial' | 'Industrial';
 
 export type PropertySubtype = 'Casa' | 'Apartamento' | 'Sala' | 'Loja' | 'Prédio' | 'Galpão' | 'Terreno' | 'Chácara';
 
@@ -24,7 +24,9 @@ export interface Agency {
   createdAt?: string;
   logoUrl?: string;
   address?: string; 
-  phone?: string;   
+  phone?: string;
+  isApproved?: boolean; // Controle de liberação
+  trialExpiresAt?: string; // Data de expiração do teste grátis
 }
 
 export interface Property {
@@ -52,6 +54,7 @@ export interface Property {
   status?: 'Active' | 'Sold';
   soldAt?: string;
   soldToLeadId?: string; // ID do Lead se vendido internamente
+  soldByUserId?: string; // ID do Corretor que vendeu
   salePrice?: number; // Valor final que foi fechado o negócio
   commissionValue?: number; // Valor da comissão recebida
 
@@ -94,9 +97,25 @@ export interface User {
   name: string;
   email: string;
   password?: string;
+  phone?: string; // Telefone do usuário (Admin)
   role: 'Admin' | 'Broker';
   avatarUrl: string;
   agencyId: string;
+  loginCount?: number; // Total de acessos
 }
 
-export type ViewState = 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS';
+export interface Message {
+  id: string;
+  content: string;
+  direction: 'inbound' | 'outbound';
+  leadId: string;
+  createdAt: string;
+  agencyId: string;
+}
+
+export interface OperationResult {
+    success: boolean;
+    message?: string;
+}
+
+export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN';
