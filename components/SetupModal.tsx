@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Database, Save, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { saveCredentials, validateCredentials } from '../services/supabaseClient';
@@ -12,7 +13,6 @@ export const SetupModal: React.FC<SetupModalProps> = ({ onSuccess }) => {
   const [status, setStatus] = useState<'idle' | 'testing' | 'error' | 'success'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Tenta carregar valores antigos se existirem, para facilitar edição
   useEffect(() => {
       const savedUrl = localStorage.getItem('imob_supabase_url');
       const savedKey = localStorage.getItem('imob_supabase_key');
@@ -25,21 +25,17 @@ export const SetupModal: React.FC<SetupModalProps> = ({ onSuccess }) => {
     setStatus('testing');
     setErrorMessage('');
 
-    // Validação básica
     if (!url || !key) {
         setStatus('error');
         setErrorMessage('Preencha todos os campos.');
         return;
     }
 
-    // Validação real de conexão
     const result = await validateCredentials(url, key);
 
     if (result.success) {
         setStatus('success');
         saveCredentials(url, key);
-        
-        // Pequeno delay para usuário ver o sucesso visualmente
         setTimeout(() => {
             onSuccess();
         }, 800);

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ViewState, LeadStatus } from '../types';
 
@@ -12,17 +11,20 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { currentView, setCurrentView, currentUser, currentAgency, logout, leads, isSuperAdmin } = useApp();
 
-  // Safety check
   if (!currentUser) return null;
 
-  // Conta leads com status 'Novo'
-  const newLeadsCount = leads ? leads.filter(l => l.status === LeadStatus.NEW).length : 0;
+  // Conta apenas leads com status NOVO que NÃO tenham imóveis de interesse vinculados
+  // (Leads com interesses já estão em atendimento, mesmo que o status global ainda não tenha mudado)
+  const newLeadsCount = leads ? leads.filter(l => {
+      const hasInterests = l.interestedInPropertyIds && l.interestedInPropertyIds.length > 0;
+      return l.status === LeadStatus.NEW && !hasInterests;
+  }).length : 0;
 
   const NavItem = ({ view, icon: Icon, label, badge, color }: { view: ViewState, icon: any, label: string, badge?: number, color?: string }) => (
     <button
       onClick={() => {
           setCurrentView(view);
-          onClose(); // Fecha o menu no mobile ao clicar
+          onClose(); 
       }}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 ${
         currentView === view ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
@@ -49,7 +51,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   return (
     <>
-        {/* Overlay para Mobile */}
         {isOpen && (
             <div 
                 className="fixed inset-0 bg-black/50 z-20 md:hidden"
@@ -57,13 +58,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             />
         )}
 
-        {/* Sidebar Container */}
         <div className={`
             fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex flex-col z-30 transition-transform duration-300 ease-in-out w-64
             ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
             md:translate-x-0
         `}>
-            {/* Header Sidebar */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-center min-h-[88px] max-h-[88px] relative">
                 {currentAgency?.logoUrl ? (
                     <img 
@@ -80,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     </div>
                 )}
                 
-                {/* Botão Fechar Mobile */}
                 <button 
                     onClick={onClose}
                     className="absolute top-4 right-4 md:hidden text-slate-400 hover:text-slate-600"
@@ -91,10 +89,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                 <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
+                
+                <button
+                    onClick={() => { setCurrentView('AI_MATCHING'); onClose(); }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 group ${
+                        currentView === 'AI_MATCHING' 
+                        ? 'bg-purple-600 text-white shadow-md' 
+                        : 'text-purple-600 hover:bg-purple-50'
+                    }`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <Sparkles size={20} className={currentView === 'AI_MATCHING' ? 'text-yellow-300' : 'text-purple-600'} />
+                        <span className="font-medium">Consultor IA</span>
+                    </div>
+                </button>
+
                 <NavItem view="PROPERTIES" icon={Building2} label="Imóveis" />
                 <NavItem view="SALES" icon={DollarSign} label="Vendas" />
                 <NavItem view="RENTALS" icon={Key} label="Locações" />
-                <NavItem view="LEADS" icon={Users} label="Leads & Clientes" badge={newLeadsCount} />
+                <NavItem view="LEADS" icon={Users} label="Leads" badge={newLeadsCount} />
                 <NavItem view="TASKS" icon={CheckSquare} label="Tarefas" />
                 <NavItem view="USERS" icon={UserCircle} label="Equipe" />
                 <NavItem view="SETTINGS" icon={Settings} label="Configurações" />

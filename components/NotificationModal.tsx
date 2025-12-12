@@ -5,9 +5,9 @@ import { Task, Lead, Property } from '../types';
 
 interface NotificationModalProps {
     task?: Task | null;
-    lead?: Lead | null; // Lead principal da notificação (se for aviso de lead novo)
-    relatedLead?: Lead | null; // Lead vinculado a uma tarefa
-    relatedProperty?: Property | null; // Imóvel vinculado
+    lead?: Lead | null; 
+    relatedLead?: Lead | null;
+    relatedProperty?: Property | null; 
     onDismiss: () => void;
     onComplete?: (id: string) => void;
 }
