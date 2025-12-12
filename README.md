@@ -1,20 +1,39 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Limpeza do Projeto
 
-# Run and deploy your AI Studio app
+O sistema foi migrado para **TypeScript** para maior estabilidade.
+Você pode deletar com segurança os seguintes arquivos antigos (extensão .js e .jsx) na barra lateral de arquivos:
 
-This contains everything you need to run your app locally.
+### Na pasta raiz:
+- `vite.config.js` (O sistema usará vite.config.ts se este for deletado, mas deixei ele compatível por enquanto)
+- `types.js`
+- `index.jsx`
+- `App.jsx`
 
-View your app in AI Studio: https://ai.studio/apps/drive/1fc37Cc8UY0A8YXDYuKlt9iY9KZBMp9H4
+### Na pasta components:
+- `Sidebar.jsx`
+- `ConfirmModal.jsx`
+- `NotificationModal.jsx`
+- `SetupModal.jsx`
 
-## Run Locally
+### Na pasta context:
+- `AppContext.jsx`
 
-**Prerequisites:**  Node.js
+### Na pasta pages:
+- `Dashboard.jsx`
+- `Properties.jsx`
+- `Leads.jsx`
+- `Tasks.jsx`
+- `Users.jsx`
+- `Settings.jsx`
+- `Rentals.jsx`
+- `Sales.jsx`
+- `PublicPage.jsx`
+- `SuperAdmin.jsx`
+- `LandingPage.jsx`
+- `Login.jsx`
 
+### Na pasta services:
+- `db.js`
+- `supabaseClient.js`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+**Nota:** Eu já "desativei" o conteúdo desses arquivos para que o sistema funcione mesmo se você não os deletar agora.

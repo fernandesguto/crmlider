@@ -1,25 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
-import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './pages/Dashboard';
-import { Properties } from './pages/Properties';
-import { Leads } from './pages/Leads';
-import { Tasks } from './pages/Tasks';
-import { Users } from './pages/Users';
-import { Settings } from './pages/Settings';
-import { Rentals } from './pages/Rentals';
-import { Sales } from './pages/Sales';
-import { PublicPage } from './pages/PublicPage';
-import { SuperAdmin } from './pages/SuperAdmin';
-import { LandingPage } from './pages/LandingPage';
-import { Login } from './pages/Login';
-import { SetupModal } from './components/SetupModal';
-import { checkConfiguration } from './services/supabaseClient';
-import { NotificationModal } from './components/NotificationModal';
+import { AppProvider, useApp } from './context/AppContext.tsx';
+import { Sidebar } from './components/Sidebar.tsx';
+import { Dashboard } from './pages/Dashboard.tsx';
+import { Properties } from './pages/Properties.tsx';
+import { Leads } from './pages/Leads.tsx';
+import { Tasks } from './pages/Tasks.tsx';
+import { Users } from './pages/Users.tsx';
+import { Settings } from './pages/Settings.tsx';
+import { Rentals } from './pages/Rentals.tsx';
+import { Sales } from './pages/Sales.tsx';
+import { PublicPage } from './pages/PublicPage.tsx';
+import { SuperAdmin } from './pages/SuperAdmin.tsx';
+import { LandingPage } from './pages/LandingPage.tsx';
+import { Login } from './pages/Login.tsx';
+import { SetupModal } from './components/SetupModal.tsx';
+import { checkConfiguration } from './services/supabaseClient.ts';
+import { NotificationModal } from './components/NotificationModal.tsx';
+import { AiMatching } from './pages/AiMatching.tsx';
 import { Menu, Building2 } from 'lucide-react';
 
-// --- THEME CONTROLLER ---
 const ThemeController = () => {
     const { themeColor, darkMode } = useApp();
 
@@ -80,15 +79,13 @@ const MainLayout: React.FC = () => {
   const { currentView, currentUser, notificationTask, notificationLead, dismissNotification, toggleTaskCompletion, leads, properties, setCurrentView, currentAgency } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Roteamento Público (Não Logado)
+  if (currentView === 'LANDING') return <LandingPage />;
+
   if (!currentUser) {
-      if (currentView === 'LANDING') return <LandingPage />;
-      if (currentView === 'PUBLIC') return <><ThemeController /><PublicPage /></>; // Permite ver site público mesmo sem logar se a URL estiver certa (futuro)
-      // Se tentar acessar qualquer outra coisa sem logar, vai pro Login
+      if (currentView === 'PUBLIC') return <><ThemeController /><PublicPage /></>;
       return <Login />;
   }
 
-  // Roteamento Logado
   if (currentView === 'PUBLIC') {
       return (
           <>
@@ -98,7 +95,6 @@ const MainLayout: React.FC = () => {
       )
   }
 
-  // Helpers para notificações
   const taskLead = notificationTask && notificationTask.leadId ? leads.find(l => l.id === notificationTask.leadId) : undefined;
   const leadPropertyInterest = notificationLead && notificationLead.interestedInPropertyIds.length > 0 
       ? properties.find(p => p.id === notificationLead.interestedInPropertyIds[0]) 
@@ -107,7 +103,7 @@ const MainLayout: React.FC = () => {
   const handleDismiss = () => {
       dismissNotification();
       if (notificationLead) {
-          setCurrentView('LEADS'); // Atalho para ver leads
+          setCurrentView('LEADS');
       }
   };
 
@@ -115,7 +111,6 @@ const MainLayout: React.FC = () => {
     <div className="flex min-h-screen bg-slate-50 transition-colors duration-200 flex-col md:flex-row">
       <ThemeController />
       
-      {/* Mobile Header Bar */}
       <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
           <div className="flex items-center space-x-2">
                 {currentAgency?.logoUrl ? (
@@ -144,11 +139,9 @@ const MainLayout: React.FC = () => {
         {currentView === 'USERS' && <Users />}
         {currentView === 'SETTINGS' && <Settings />}
         {currentView === 'SUPER_ADMIN' && <SuperAdmin />}
-        {/* Caso de fallback */}
-        {currentView === 'LANDING' && <Dashboard />} 
+        {currentView === 'AI_MATCHING' && <AiMatching />}
       </main>
 
-      {/* Alerta de Tarefa (Azul) */}
       {notificationTask && (
           <NotificationModal 
               task={notificationTask} 
@@ -158,12 +151,11 @@ const MainLayout: React.FC = () => {
           />
       )}
 
-      {/* Alerta de Novo Lead (Verde) - Prioridade Visual */}
       {notificationLead && !notificationTask && (
           <NotificationModal 
               lead={notificationLead} 
               relatedProperty={leadPropertyInterest}
-              onDismiss={handleDismiss} // Botão "Ver Leads" vai cair aqui
+              onDismiss={handleDismiss}
           />
       )}
     </div>
@@ -178,6 +170,7 @@ const App: React.FC = () => {
       const configured = checkConfiguration();
       setIsConfigured(configured);
       setChecking(false);
+      console.log("Sistema TSX carregado com sucesso.");
   }, []);
 
   const handleConfigurationSuccess = () => setIsConfigured(true);

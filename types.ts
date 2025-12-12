@@ -55,7 +55,7 @@ export interface Property {
   soldAt?: string;
   soldToLeadId?: string; // ID do Lead se vendido internamente
   soldByUserId?: string; // ID do Corretor que vendeu
-  salePrice?: number; // Valor final que foi fechado o negócio
+  salePrice?: number; // Valor final que foi fechado o negócio (Aluguel mensal ou Venda Total)
   commissionValue?: number; // Valor da comissão recebida
 
   bedrooms: number;
@@ -67,14 +67,34 @@ export interface Property {
   agencyId: string;
 }
 
+export interface FinancialRecord {
+    id: string;
+    agencyId: string;
+    propertyId: string;
+    type: 'Sale' | 'Rental';
+    value: number; // Valor da Venda ou Aluguel
+    commission: number; // Comissão
+    date: string; // Data da Venda ou Início do Contrato
+    endDate?: string; // Data Fim do Contrato (Apenas para Locação encerrada)
+    leadId?: string;
+    brokerId?: string;
+}
+
+export interface LeadInterest {
+    propertyId: string;
+    status: LeadStatus;
+    updatedAt: string;
+}
+
 export interface Lead {
   id: string;
   name: string;
   email: string;
   phone: string;
   type: 'Buyer' | 'Seller';
-  status: LeadStatus;
-  interestedInPropertyIds: string[];
+  status: LeadStatus; // Status Global (Calculado ou Manual)
+  interestedInPropertyIds: string[]; // Mantido para busca rápida, mas o detalhe está em interests
+  interests?: LeadInterest[]; // Nova estrutura detalhada
   notes: string;
   createdAt: string;
   agencyId: string;
@@ -118,4 +138,21 @@ export interface OperationResult {
     message?: string;
 }
 
-export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN';
+export interface AiMatchOpportunity {
+    leadId: string;
+    propertyId: string;
+    matchScore: number; // 0 a 100
+    reason: string;
+    suggestedAction: string;
+    status?: 'pending' | 'accepted' | 'dismissed';
+}
+
+export interface AiStaleLeadOpportunity {
+    leadId: string;
+    daysInactive: number;
+    currentStatus: string;
+    analysis: string;
+    reactivationMessage: string;
+}
+
+export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING';
