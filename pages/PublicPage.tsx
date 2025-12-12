@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowRight, X, ChevronLeft, ChevronRight, CheckCircle, User, Filter } from 'lucide-react';
+import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowRight, X, ChevronLeft, ChevronRight, CheckCircle, User, Filter, ArrowUpDown } from 'lucide-react';
 import { PropertyType, Property, LeadStatus } from '../types';
 
 export const PublicPage: React.FC = () => {
-    const { properties, currentAgency, addLead } = useApp();
+    const { properties, currentAgency, addLead, users } = useApp();
     
     // --- FILTERS STATE ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +18,7 @@ export const PublicPage: React.FC = () => {
     const [bedroomsFilter, setBedroomsFilter] = useState<string>('');
     const [bathroomsFilter, setBathroomsFilter] = useState<string>('');
     const [featureFilter, setFeatureFilter] = useState('');
+    const [sortOption, setSortOption] = useState('date_desc'); // Default: Mais recentes
 
     // Modal State
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -38,29 +39,44 @@ export const PublicPage: React.FC = () => {
     const allCities = Array.from(new Set(activeProperties.map(p => p.city || '').filter(c => c !== ''))).sort();
     const allFeatures = Array.from(new Set(activeProperties.flatMap(p => p.features || []))).sort();
 
-    const filteredProperties = activeProperties.filter(property => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchText = !searchTerm ||
-          property.title.toLowerCase().includes(searchLower) ||
-          property.address.toLowerCase().includes(searchLower) ||
-          (property.neighborhood || '').toLowerCase().includes(searchLower) ||
-          (property.city || '').toLowerCase().includes(searchLower) ||
-          (property.code?.toString().includes(searchLower));
+    const filteredProperties = activeProperties
+      .filter(property => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchText = !searchTerm ||
+            property.title.toLowerCase().includes(searchLower) ||
+            property.address.toLowerCase().includes(searchLower) ||
+            (property.neighborhood || '').toLowerCase().includes(searchLower) ||
+            (property.city || '').toLowerCase().includes(searchLower) ||
+            (property.code?.toString().includes(searchLower));
 
-      const matchType = !typeFilter || property.type === typeFilter;
-      const matchCategory = !categoryFilter || property.category === categoryFilter;
-      const matchSubtype = !subtypeFilter || property.subtype === subtypeFilter;
-      const matchCity = !cityFilter || property.city === cityFilter;
-      
-      const matchMinPrice = !priceMin || property.price >= Number(priceMin);
-      const matchMaxPrice = !priceMax || property.price <= Number(priceMax);
-      
-      const matchBedrooms = !bedroomsFilter || property.bedrooms >= Number(bedroomsFilter);
-      const matchBathrooms = !bathroomsFilter || property.bathrooms >= Number(bathroomsFilter);
-      const matchFeature = !featureFilter || (property.features && property.features.includes(featureFilter));
+        const matchType = !typeFilter || property.type === typeFilter;
+        const matchCategory = !categoryFilter || property.category === categoryFilter;
+        const matchSubtype = !subtypeFilter || property.subtype === subtypeFilter;
+        const matchCity = !cityFilter || property.city === cityFilter;
+        
+        const matchMinPrice = !priceMin || property.price >= Number(priceMin);
+        const matchMaxPrice = !priceMax || property.price <= Number(priceMax);
+        
+        const matchBedrooms = !bedroomsFilter || property.bedrooms >= Number(bedroomsFilter);
+        const matchBathrooms = !bathroomsFilter || property.bathrooms >= Number(bathroomsFilter);
+        const matchFeature = !featureFilter || (property.features && property.features.includes(featureFilter));
 
-      return matchText && matchType && matchCategory && matchSubtype && matchCity && matchMinPrice && matchMaxPrice && matchBedrooms && matchBathrooms && matchFeature;
-    });
+        return matchText && matchType && matchCategory && matchSubtype && matchCity && matchMinPrice && matchMaxPrice && matchBedrooms && matchBathrooms && matchFeature;
+      })
+      .sort((a, b) => {
+          switch (sortOption) {
+              case 'price_asc':
+                  return a.price - b.price;
+              case 'price_desc':
+                  return b.price - a.price;
+              case 'date_asc':
+                  // ID numérico é timestamp da criação. IDs não numéricos (seed) retornam 0 (antigos)
+                  return (Number(a.id) || 0) - (Number(b.id) || 0);
+              case 'date_desc':
+              default:
+                  return (Number(b.id) || 0) - (Number(a.id) || 0);
+          }
+      });
 
     // --- CURRENCY HELPERS ---
     const parseCurrency = (value: string) => {
@@ -87,6 +103,7 @@ export const PublicPage: React.FC = () => {
         setBedroomsFilter('');
         setBathroomsFilter('');
         setFeatureFilter('');
+        setSortOption('date_desc');
     };
 
     const handleViewDetails = (property: Property) => {
@@ -130,6 +147,11 @@ export const PublicPage: React.FC = () => {
                 type: 'Buyer',
                 status: LeadStatus.NEW,
                 interestedInPropertyIds: [selectedProperty.id],
+                interests: [{
+                    propertyId: selectedProperty.id,
+                    status: LeadStatus.NEW,
+                    updatedAt: new Date().toISOString()
+                }],
                 notes: 'Captado via Site Público',
                 createdAt: new Date().toISOString(),
                 agencyId: currentAgency.id
@@ -198,7 +220,7 @@ export const PublicPage: React.FC = () => {
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Tipo de Negócio</label>
                             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="">Todos</option>
+                                <option value="">Todas</option>
                                 {Object.values(PropertyType).map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
@@ -206,7 +228,7 @@ export const PublicPage: React.FC = () => {
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Categoria</label>
                             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                 <option value="">Todas</option>
-                                {['Residencial', 'Comercial', 'Terreno / Área', 'Rural', 'Industrial'].map(c => <option key={c} value={c}>{c}</option>)}
+                                {['Residencial', 'Comercial', 'Industrial'].map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
 
@@ -214,7 +236,7 @@ export const PublicPage: React.FC = () => {
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Subtipo</label>
                             <select value={subtypeFilter} onChange={(e) => setSubtypeFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="">Todos</option>
+                                <option value="">Todas</option>
                                 {['Casa', 'Apartamento', 'Sala', 'Loja', 'Prédio', 'Galpão', 'Terreno', 'Chácara'].map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
@@ -261,6 +283,17 @@ export const PublicPage: React.FC = () => {
                             <select value={featureFilter} onChange={(e) => setFeatureFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                 <option value="">Todos</option>
                                 {allFeatures.map(f => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Linha 3 (Sorting) */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center"><ArrowUpDown size={12} className="mr-1"/> Ordenar Por</label>
+                            <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                                <option value="date_desc">Mais Recentes</option>
+                                <option value="date_asc">Mais Antigos</option>
+                                <option value="price_asc">Menor Preço</option>
+                                <option value="price_desc">Maior Preço</option>
                             </select>
                         </div>
                     </div>
@@ -347,14 +380,11 @@ export const PublicPage: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <p className="text-sm leading-relaxed max-w-xs text-slate-500">
-                            Encontre o lar ideal ou invista com segurança.
-                        </p>
                     </div>
                     <div>
                         <h4 className="text-slate-900 font-bold mb-4">Contato</h4>
                         <ul className="space-y-3 text-sm">
-                            <li className="flex items-center"><Mail size={16} className="mr-2 text-blue-600"/> contato@imobiliaria.com.br</li>
+                            <li className="flex items-center"><Mail size={16} className="mr-2 text-blue-600"/> {users.find(u => u.role === 'Admin')?.email || 'contato@imobiliaria.com.br'}</li>
                             {currentAgency?.phone && (
                                 <li className="flex items-center"><Phone size={16} className="mr-2 text-blue-600"/> {currentAgency.phone}</li>
                             )}
@@ -425,7 +455,7 @@ export const PublicPage: React.FC = () => {
                                         
                                         <div className="flex items-center text-slate-600 text-sm mb-6">
                                             <MapPin size={16} className="mr-1 text-slate-400" />
-                                            {selectedProperty.address} - {selectedProperty.neighborhood}, {selectedProperty.city}
+                                            {selectedProperty.neighborhood}, {selectedProperty.city} - {selectedProperty.state}
                                         </div>
 
                                         <div className="grid grid-cols-3 gap-4 py-4 border-y border-slate-100 mb-6">
@@ -514,7 +544,20 @@ export const PublicPage: React.FC = () => {
                                                     <label className="block text-sm font-bold text-slate-700 mb-1">Seu Telefone / WhatsApp</label>
                                                     <div className="relative">
                                                         <Phone size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                                                        <input required value={leadPhone} onChange={e => setLeadPhone(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" />
+                                                        <input 
+                                                            required 
+                                                            value={leadPhone} 
+                                                            onChange={e => {
+                                                                let val = e.target.value
+                                                                    .replace(/\D/g, '')
+                                                                    .replace(/^(\d{2})(\d)/, '($1) $2')
+                                                                    .replace(/(\d)(\d{4})$/, '$1-$2');
+                                                                setLeadPhone(val);
+                                                            }} 
+                                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" 
+                                                            placeholder="(00) 00000-0000"
+                                                            maxLength={15} 
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -533,3 +576,4 @@ export const PublicPage: React.FC = () => {
         </div>
     );
 };
+    

@@ -1,29 +1,25 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle } from 'lucide-react';
+import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
-  const { leads, addLead, updateLead, updateLeadStatus, deleteLead, properties, currentAgency } = useApp();
+  const { leads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties, currentAgency } = useApp();
   
-  // Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [propertyFilter, setPropertyFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>(''); // Filter for Buyer/Seller
 
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Property View Modal
   const [viewProperty, setViewProperty] = useState<Property | null>(null);
 
-  // Delete Modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
   
-  // Form State
   const [formData, setFormData] = useState<Partial<Lead>>({
     name: '',
     email: '',
@@ -31,49 +27,79 @@ export const Leads: React.FC = () => {
     type: 'Buyer',
     status: LeadStatus.NEW,
     interestedInPropertyIds: [],
+    interests: [],
     notes: ''
   });
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = !statusFilter || lead.status === statusFilter;
-    
-    const matchesProperty = !propertyFilter || lead.interestedInPropertyIds.includes(propertyFilter);
+  // Função auxiliar para verificar status de interesse específico
+  const getInterestStatus = (lead: Lead, propId: string) => {
+      const interest = lead.interests?.find(i => i.propertyId === propId);
+      return interest?.status || lead.status || LeadStatus.NEW;
+  };
 
-    return matchesSearch && matchesStatus && matchesProperty;
-  });
+  const filteredLeads = leads
+    .filter(lead => {
+        const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Match status: Se o filtro estiver vazio, passa.
+        // Se tiver filtro, verifica se o lead tem ALGUM interesse com aquele status OU se o status global bate.
+        const matchesStatus = !statusFilter || 
+            (lead.interests?.some(i => i.status === statusFilter)) ||
+            (lead.status === statusFilter);
+        
+        const matchesProperty = !propertyFilter || lead.interestedInPropertyIds.includes(propertyFilter);
+
+        const matchesType = !typeFilter || lead.type === typeFilter;
+
+        return matchesSearch && matchesStatus && matchesProperty && matchesType;
+    })
+    .sort((a, b) => {
+        // Regra 1: Status "Novo" sempre em primeiro
+        const aIsNew = a.status === LeadStatus.NEW;
+        const bIsNew = b.status === LeadStatus.NEW;
+
+        if (aIsNew && !bIsNew) return -1;
+        if (!aIsNew && bIsNew) return 1;
+
+        // Regra 2: Ordenação por data de criação (Mais recentes primeiro)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const clearFilters = () => {
       setSearchTerm('');
       setStatusFilter('');
       setPropertyFilter('');
+      setTypeFilter('');
   };
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {
-      case LeadStatus.NEW: return 'bg-blue-100 text-blue-700';
-      case LeadStatus.CONTACTED: return 'bg-yellow-100 text-yellow-700';
-      case LeadStatus.VISITING: return 'bg-purple-100 text-purple-700';
-      case LeadStatus.NEGOTIATION: return 'bg-orange-100 text-orange-700';
-      case LeadStatus.CLOSED: return 'bg-green-100 text-green-700';
-      case LeadStatus.LOST: return 'bg-slate-100 text-slate-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case LeadStatus.NEW: return 'bg-green-100 text-green-700 border-green-200'; // Novo agora é Verde
+      case LeadStatus.CONTACTED: return 'bg-blue-100 text-blue-700 border-blue-200'; // Contatado agora é Azul
+      case LeadStatus.VISITING: return 'bg-purple-100 text-purple-700 border-purple-200';
+      case LeadStatus.NEGOTIATION: return 'bg-orange-100 text-orange-700 border-orange-200';
+      case LeadStatus.CLOSED: return 'bg-emerald-100 text-emerald-800 border-emerald-200'; // Fechado em tom diferente
+      case LeadStatus.LOST: return 'bg-slate-100 text-slate-700 border-slate-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
   const handleOpenCreate = () => {
       setFormData({ 
           name: '', email: '', phone: '', type: 'Buyer', 
-          status: LeadStatus.NEW, interestedInPropertyIds: [], notes: '' 
+          status: LeadStatus.NEW, interestedInPropertyIds: [], interests: [], notes: '' 
       });
       setIsEditing(false);
       setShowModal(true);
   };
 
   const handleOpenEdit = (lead: Lead) => {
-      setFormData({ ...lead });
+      setFormData({ 
+          ...lead,
+          // Garante que array legacy e novo estejam sync no form
+          interests: lead.interests || [] 
+      });
       setIsEditing(true);
       setShowModal(true);
   };
@@ -96,10 +122,8 @@ export const Leads: React.FC = () => {
     if (!formData.name) return;
 
     if (isEditing && formData.id) {
-        // Update
         await updateLead(formData as Lead);
     } else {
-        // Create
         addLead({
             id: Date.now().toString(),
             name: formData.name!,
@@ -108,6 +132,7 @@ export const Leads: React.FC = () => {
             type: formData.type as 'Buyer' | 'Seller' || 'Buyer',
             status: formData.status as LeadStatus || LeadStatus.NEW,
             interestedInPropertyIds: formData.interestedInPropertyIds || [],
+            interests: formData.interests || [],
             notes: formData.notes || '',
             createdAt: new Date().toISOString(),
             agencyId: currentAgency?.id || ''
@@ -118,10 +143,17 @@ export const Leads: React.FC = () => {
 
   const addPropertyInterest = (propertyId: string) => {
       if (!propertyId) return;
-      if (!formData.interestedInPropertyIds?.includes(propertyId)) {
+      
+      const alreadyHas = formData.interestedInPropertyIds?.includes(propertyId);
+      if (!alreadyHas) {
+          const newInterests = [...(formData.interests || [])];
+          // Adiciona novo interesse com status "Novo" padrão
+          newInterests.push({ propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() });
+
           setFormData(prev => ({
               ...prev,
-              interestedInPropertyIds: [...(prev.interestedInPropertyIds || []), propertyId]
+              interestedInPropertyIds: [...(prev.interestedInPropertyIds || []), propertyId],
+              interests: newInterests
           }));
       }
   };
@@ -129,8 +161,34 @@ export const Leads: React.FC = () => {
   const removePropertyInterest = (propertyId: string) => {
       setFormData(prev => ({
           ...prev,
-          interestedInPropertyIds: prev.interestedInPropertyIds?.filter(id => id !== propertyId)
+          interestedInPropertyIds: prev.interestedInPropertyIds?.filter(id => id !== propertyId),
+          interests: prev.interests?.filter(i => i.propertyId !== propertyId)
       }));
+  };
+
+  const updateInterestStatusInForm = (propId: string, newStatus: string) => {
+      // Cria uma cópia segura do array de interesses
+      const currentInterests = formData.interests ? [...formData.interests] : [];
+      
+      const existingIndex = currentInterests.findIndex(i => i.propertyId === propId);
+
+      if (existingIndex >= 0) {
+          // Atualiza existente
+          currentInterests[existingIndex] = { 
+              ...currentInterests[existingIndex], 
+              status: newStatus as LeadStatus, 
+              updatedAt: new Date().toISOString() 
+          };
+      } else {
+          // Cria novo se não existir (Correção para dados legados)
+          currentInterests.push({ 
+              propertyId: propId, 
+              status: newStatus as LeadStatus, 
+              updatedAt: new Date().toISOString() 
+          });
+      }
+      
+      setFormData(prev => ({ ...prev, interests: currentInterests }));
   };
 
   const getInterestedProperties = (ids: string[]) => {
@@ -153,13 +211,11 @@ export const Leads: React.FC = () => {
         </button>
       </div>
 
-      {/* Barra de Filtros */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 p-4">
         <div className="flex items-center space-x-2 mb-3 text-slate-500 font-bold uppercase text-xs tracking-wider">
             <Filter size={14} /> <span>Filtros</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Busca Texto */}
             <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
                 <Search className="text-slate-400 mr-2 flex-shrink-0" size={18} />
                 <input
@@ -171,19 +227,27 @@ export const Leads: React.FC = () => {
                 />
             </div>
 
-            {/* Filtro Status */}
+            <select
+                className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+            >
+                <option value="">Todos os Tipos</option>
+                <option value="Buyer">Comprador</option>
+                <option value="Seller">Proprietário</option>
+            </select>
+
             <select
                 className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
             >
-                <option value="">Todas as Etapas</option>
+                <option value="">Status em Algum Imóvel</option>
                 {Object.values(LeadStatus).map(status => (
                     <option key={status} value={status}>{status}</option>
                 ))}
             </select>
 
-            {/* Filtro Imóvel */}
             <select
                 className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
                 value={propertyFilter}
@@ -195,11 +259,10 @@ export const Leads: React.FC = () => {
                 ))}
             </select>
 
-            {/* Botão Limpar */}
-            {(searchTerm || statusFilter || propertyFilter) && (
+            {(searchTerm || statusFilter || propertyFilter || typeFilter) && (
                 <button 
                     onClick={clearFilters}
-                    className="flex items-center justify-center space-x-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm py-2.5 border border-transparent hover:border-red-200"
+                    className="flex items-center justify-center space-x-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm py-2.5 border border-transparent hover:border-red-200 md:col-start-4"
                 >
                     <X size={16} /> <span>Limpar</span>
                 </button>
@@ -213,30 +276,32 @@ export const Leads: React.FC = () => {
       <div className="space-y-4">
         {filteredLeads.map(lead => {
           const isFromSite = lead.notes?.includes('Site Público');
-          // Destaque verde se for NOVO (seja do site ou cadastrado manualmente)
-          const isNew = lead.status === LeadStatus.NEW;
+          
+          // O lead só é considerado "Novo" visualmente se o status for NEW E ele NÃO tiver nenhum imóvel vinculado.
+          // Se tiver imóvel vinculado, entende-se que já está em qualificação/interesse, então removemos o destaque.
+          const hasInterests = lead.interestedInPropertyIds && lead.interestedInPropertyIds.length > 0;
+          const isNewLead = lead.status === LeadStatus.NEW && !hasInterests;
           
           return (
             <div 
                 key={lead.id} 
-                className={`rounded-xl shadow-sm border p-4 md:p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center group transition-all hover:shadow-md gap-4 ${
-                    isNew ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'
-                }`}
+                className={`rounded-xl shadow-sm border p-4 md:p-6 flex flex-col lg:flex-row justify-between items-start group transition-all hover:shadow-md gap-4 
+                ${isNewLead ? 'bg-green-50 border-green-300 shadow-green-100 ring-1 ring-green-100' : 'bg-white border-slate-200'}`}
             >
                 <div className="flex-1 w-full min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                        <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
+                        <div className="flex items-center gap-2">
+                            {isNewLead && <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider animate-pulse">Novo</span>}
+                            <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
+                        </div>
                         <div className="flex flex-wrap items-center gap-2">
                             {isFromSite && (
-                                <span className={`flex items-center text-xs font-bold px-2 py-0.5 rounded shadow-sm border ${isNew ? 'text-emerald-700 bg-white border-emerald-200' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                                <span className="flex items-center text-xs font-bold px-2 py-0.5 rounded shadow-sm border text-emerald-700 bg-white border-emerald-200">
                                     <Globe size={12} className="mr-1" /> Site
                                 </span>
                             )}
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${lead.type === 'Buyer' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
                             {lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getStatusColor(lead.status)}`}>
-                            {lead.status}
                             </span>
                         </div>
                     </div>
@@ -247,73 +312,68 @@ export const Leads: React.FC = () => {
                         <div className="flex items-center space-x-1"><Clock size={14} className="flex-shrink-0" /> <span>{new Date(lead.createdAt).toLocaleDateString()}</span></div>
                     </div>
                     
-                    {/* Resumo de Interesses */}
                     {lead.interestedInPropertyIds.length > 0 && (
-                        <div className="mt-3 flex items-center space-x-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-                        <span className="text-xs font-medium text-slate-500 flex items-center flex-shrink-0"><Home size={12} className="mr-1"/> Interesse:</span>
-                        {getInterestedProperties(lead.interestedInPropertyIds).map(p => (
-                            <button 
-                                key={p.id} 
-                                onClick={() => setViewProperty(p)}
-                                className={`text-xs px-2 py-1 rounded truncate max-w-[200px] border flex items-center transition hover:shadow-sm flex-shrink-0 ${
-                                    isFromSite 
-                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200 font-medium hover:bg-emerald-200' 
-                                        : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                }`}
-                                title="Ver Detalhes do Imóvel"
-                            >
-                                <Eye size={10} className="mr-1.5 opacity-50 flex-shrink-0"/>
-                                <span className="truncate">{p.title}</span>
-                            </button>
-                        ))}
+                        <div className="mt-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-wider">Interesses e Negociações</span>
+                            <div className="flex flex-wrap gap-2">
+                                {getInterestedProperties(lead.interestedInPropertyIds).map(p => {
+                                    const status = getInterestStatus(lead, p.id);
+                                    return (
+                                        <div 
+                                            key={p.id} 
+                                            onClick={() => setViewProperty(p)}
+                                            className="flex items-center text-xs bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-sm cursor-pointer transition max-w-xs"
+                                        >
+                                            <div className="px-2 py-1.5 flex items-center border-r border-slate-200 truncate">
+                                                <Home size={12} className="mr-1.5 opacity-50 flex-shrink-0"/>
+                                                <span className="truncate font-medium text-slate-700">{p.title}</span>
+                                            </div>
+                                            <div className={`px-2 py-1.5 font-bold border-l ${getStatusColor(status)}`}>
+                                                {status}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 flex-wrap">
-                    <select
-                        value={lead.status}
-                        onChange={(e) => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
-                        className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none cursor-pointer flex-1 lg:w-40 min-w-[140px]"
-                    >
-                        {Object.values(LeadStatus).map(status => (
-                        <option key={status} value={status}>{status}</option>
-                        ))}
-                    </select>
-                    
+                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 flex-wrap lg:flex-col lg:items-end">
                     {lead.phone && (
                         <a 
                             href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex-shrink-0 shadow-sm"
+                            className="w-full lg:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center justify-center shadow-sm text-sm font-bold mb-2"
                             title="Conversar no WhatsApp"
                         >
-                            <MessageCircle size={18} />
+                            <MessageCircle size={16} className="mr-2"/> WhatsApp
                         </a>
                     )}
 
-                    <button 
-                        onClick={() => handleOpenEdit(lead)}
-                        className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition border border-slate-200 flex-shrink-0"
-                        title="Editar Lead"
-                    >
-                        <Edit size={18} />
-                    </button>
-                    <button 
-                        onClick={() => handleDeleteClick(lead)}
-                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-slate-200 flex-shrink-0"
-                        title="Excluir Lead"
-                    >
-                        <Trash2 size={18} />
-                    </button>
+                    <div className="flex gap-2 w-full lg:w-auto justify-end">
+                        <button 
+                            onClick={() => handleOpenEdit(lead)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition border border-slate-200 flex-shrink-0"
+                            title="Editar Lead"
+                        >
+                            <Edit size={18} />
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteClick(lead)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-slate-200 flex-shrink-0"
+                            title="Excluir Lead"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 </div>
             </div>
           );
         })}
       </div>
 
-       {/* MODAL EDITAR / CRIAR LEAD */}
        {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
@@ -325,7 +385,6 @@ export const Leads: React.FC = () => {
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Dados Pessoais */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
@@ -351,7 +410,14 @@ export const Leads: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
                     <input 
                         value={formData.phone} 
-                        onChange={e => setFormData({...formData, phone: e.target.value})} 
+                        onChange={e => {
+                            let val = e.target.value
+                                .replace(/\D/g, '')
+                                .replace(/^(\d{2})(\d)/, '($1) $2')
+                                .replace(/(\d)(\d{4})$/, '$1-$2');
+                            setFormData({...formData, phone: val});
+                        }}
+                        maxLength={15} 
                         className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" 
                         placeholder="(00) 00000-0000"
                     />
@@ -367,30 +433,17 @@ export const Leads: React.FC = () => {
                         <option value="Seller">Proprietário</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status Atual</label>
-                    <select 
-                        value={formData.status} 
-                        onChange={e => setFormData({...formData, status: e.target.value as any})} 
-                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        {Object.values(LeadStatus).map(status => (
-                            <option key={status} value={status}>{status}</option>
-                        ))}
-                    </select>
-                  </div>
               </div>
 
-              {/* Imóveis de Interesse */}
               <div className="border-t border-slate-100 pt-4">
-                 <label className="block text-sm font-bold text-slate-800 mb-2">Imóveis de Interesse</label>
+                 <label className="block text-sm font-bold text-slate-800 mb-2">Imóveis e Negociações</label>
                  
                  <div className="flex items-center space-x-2 mb-3">
                     <select 
                        className="flex-1 bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                        onChange={(e) => {
                           addPropertyInterest(e.target.value);
-                          e.target.value = ""; // Reset select
+                          e.target.value = ""; 
                        }}
                     >
                         <option value="">+ Adicionar Imóvel à lista...</option>
@@ -403,27 +456,42 @@ export const Leads: React.FC = () => {
                  </div>
 
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
-                     <div className="flex flex-wrap gap-2">
-                         {getInterestedProperties(formData.interestedInPropertyIds).map(p => (
-                             <div key={p.id} className="bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg text-sm flex items-center shadow-sm">
-                                 <Home size={14} className="mr-1.5 opacity-70" />
-                                 <span className="mr-2 font-medium">{p.title}</span>
-                                 <button 
-                                    type="button"
-                                    onClick={() => removePropertyInterest(p.id)}
-                                    className="text-blue-400 hover:text-red-500 transition"
-                                 >
-                                     <X size={16} />
-                                 </button>
-                             </div>
-                         ))}
+                     <div className="space-y-2">
+                         {getInterestedProperties(formData.interestedInPropertyIds).map(p => {
+                             // Encontra o interesse específico ou cria um mock se não existir
+                             const interest = formData.interests?.find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
+                             
+                             return (
+                                 <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center justify-between shadow-sm">
+                                     <div className="flex items-center space-x-2 flex-1 overflow-hidden">
+                                         <Home size={16} className="text-slate-400 flex-shrink-0" />
+                                         <span className="font-medium text-slate-700 truncate text-sm">{p.title}</span>
+                                     </div>
+                                     <div className="flex items-center space-x-2 ml-4">
+                                         <select
+                                            value={interest.status}
+                                            onChange={(e) => updateInterestStatusInForm(p.id, e.target.value)}
+                                            className="text-xs bg-white border border-slate-300 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                                         >
+                                             {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                                         </select>
+                                         <button 
+                                            type="button"
+                                            onClick={() => removePropertyInterest(p.id)}
+                                            className="text-slate-400 hover:text-red-500 transition p-1"
+                                         >
+                                             <X size={16} />
+                                         </button>
+                                     </div>
+                                 </div>
+                             )
+                         })}
                      </div>
                  ) : (
                      <p className="text-sm text-slate-400 italic">Nenhum imóvel selecionado.</p>
                  )}
               </div>
 
-              {/* Observações */}
               <div className="border-t border-slate-100 pt-4">
                   <label className="block text-sm font-bold text-slate-800 mb-2">Observações Internas</label>
                   <textarea 
@@ -456,7 +524,6 @@ export const Leads: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL VISUALIZAÇÃO DE IMÓVEL */}
       {viewProperty && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">

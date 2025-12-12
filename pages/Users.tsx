@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Mail, Shield, Plus, X, Edit, Trash2, Users as UsersIcon } from 'lucide-react';
-import { User } from '../types';
+import { User, OperationResult } from '../types';
+import { Plus, Mail, Shield, Edit, Trash2, X, Users as UsersIcon } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Users: React.FC = () => {
   const { users, currentUser, createAgencyUser, updateUser, deleteUser } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // State para criar e editar
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({
       name: '',
       email: '',
       password: '',
+      phone: '',
       role: 'Broker'
   });
 
@@ -33,7 +34,7 @@ export const Users: React.FC = () => {
           alert("Número de corretores máximo já foi cadastrado.\n\nSeu plano permite até 3 corretores adicionais.");
           return;
       }
-      setFormData({ name: '', email: '', password: '', role: 'Broker' });
+      setFormData({ name: '', email: '', password: '', phone: '', role: 'Broker' });
       setIsEditing(false);
       setShowModal(true);
   };
@@ -44,6 +45,7 @@ export const Users: React.FC = () => {
           name: user.name, 
           email: user.email, 
           password: user.password, 
+          phone: user.phone || '',
           role: user.role 
       });
       setIsEditing(true);
@@ -71,16 +73,18 @@ export const Users: React.FC = () => {
       e.preventDefault();
       setIsSaving(true);
       
-      let result: { success: boolean; message?: string } = { success: false, message: '' };
+      let result: OperationResult = { success: false, message: '' };
       if (isEditing && formData.id) {
           const original = users.find(u => u.id === formData.id);
           if (original) {
+              // @ts-ignore
               result = await updateUser({
                   ...original,
-                  name: formData.name!,
-                  email: formData.email!,
-                  password: formData.password!,
-                  role: formData.role!
+                  name: formData.name,
+                  email: formData.email,
+                  password: formData.password,
+                  phone: formData.phone,
+                  role: formData.role
               });
           }
       } else {
@@ -135,6 +139,12 @@ export const Users: React.FC = () => {
                     <Mail size={12} className="mr-1" />
                     {user.email}
                   </div>
+                  {user.phone && (
+                      <div className="flex items-center text-slate-500 text-sm mt-1">
+                        <UsersIcon size={12} className="mr-1" />
+                        {user.phone}
+                      </div>
+                  )}
                   <div className="flex items-center text-slate-500 text-sm mt-1">
                     <Shield size={12} className="mr-1" />
                     <span className={user.role === 'Admin' ? 'text-blue-600 font-semibold' : ''}>{user.role}</span>
@@ -214,6 +224,22 @@ export const Users: React.FC = () => {
                         />
                     </div>
                     <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Telefone / WhatsApp</label>
+                        <input 
+                            value={formData.phone}
+                            onChange={e => {
+                                let val = e.target.value
+                                    .replace(/\D/g, '')
+                                    .replace(/^(\d{2})(\d)/, '($1) $2')
+                                    .replace(/(\d)(\d{4})$/, '$1-$2');
+                                setFormData({...formData, phone: val});
+                            }}
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                        />
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
                         <input 
                             required 
@@ -227,7 +253,8 @@ export const Users: React.FC = () => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Permissão</label>
                         <select 
                             value={formData.role}
-                            onChange={e => setFormData({...formData, role: e.target.value as 'Admin' | 'Broker'})}
+                            // @ts-ignore
+                            onChange={e => setFormData({...formData, role: e.target.value})}
                             className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                         >
                             <option value="Broker">Corretor (Broker)</option>

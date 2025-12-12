@@ -262,8 +262,15 @@ export const WhatsApp: React.FC = () => {
                           <input 
                             required
                             value={newLeadNumber}
-                            onChange={e => setNewLeadNumber(e.target.value)}
+                            onChange={e => {
+                                let val = e.target.value
+                                    .replace(/\D/g, '')
+                                    .replace(/^(\d{2})(\d)/, '($1) $2')
+                                    .replace(/(\d)(\d{4})$/, '$1-$2');
+                                setNewLeadNumber(val);
+                            }}
                             placeholder="(00) 00000-0000"
+                            maxLength={15}
                             className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
                           />
                       </div>

@@ -1,38 +1,33 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Task, Lead, Property } from '../types';
-import { Check, Calendar, Plus, User, Clock, Edit, X, Save, Trash2, Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Eye, History, CalendarDays } from 'lucide-react';
+import { Check, Calendar, Plus, User, Clock, Edit, X, Save, Trash2, Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Eye, History, CalendarDays, ListChecks } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Tasks: React.FC = () => {
-  const { tasks, addTask, updateTask, toggleTaskCompletion, deleteTask, currentUser, currentAgency, leads, properties } = useApp();
+  const { tasks, addTask, updateTask, toggleTaskCompletion, deleteTask, currentUser, currentAgency, leads, properties, users } = useApp();
   
-  // Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDate, setNewTaskDate] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
+  const [selectedAssignedTo, setSelectedAssignedTo] = useState(currentUser?.id || '');
 
-  // Edit State
   const [isEditing, setIsEditing] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  // Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
-  // View Details State
   const [viewLead, setViewLead] = useState<Lead | null>(null);
   const [viewProperty, setViewProperty] = useState<Property | null>(null);
 
-  // Filter State
-  const [filterMode, setFilterMode] = useState<'week' | 'history'>('week');
+  const [filterMode, setFilterMode] = useState<'week' | 'history' | 'all_future'>('week');
 
   const formatTaskDate = (dueDate: string) => {
     if (!dueDate) return '';
-    if (dueDate.includes('T')) return dueDate; // Já tem horário
-    return `${dueDate}T12:00:00`; // Data antiga sem horário? Adiciona meio dia para não cair no dia anterior pelo UTC
+    if (dueDate.includes('T')) return dueDate; 
+    return `${dueDate}T12:00:00`; 
   };
 
   const formatCurrency = (value: number) => {
@@ -47,7 +42,6 @@ export const Tasks: React.FC = () => {
     }
 
     if (isEditing && editingTaskId) {
-        // Update Mode
         const taskToUpdate = tasks.find(t => t.id === editingTaskId);
         if (taskToUpdate) {
             await updateTask({
@@ -55,17 +49,17 @@ export const Tasks: React.FC = () => {
                 title: newTaskTitle,
                 dueDate: newTaskDate,
                 leadId: selectedLeadId || undefined,
-                propertyId: selectedPropertyId || undefined
+                propertyId: selectedPropertyId || undefined,
+                assignedTo: selectedAssignedTo
             });
         }
     } else {
-        // Create Mode
         addTask({
           id: Date.now().toString(),
           title: newTaskTitle,
-          dueDate: newTaskDate, // Formato datetime-local já é compatível com ISO
+          dueDate: newTaskDate, 
           completed: false,
-          assignedTo: currentUser.id,
+          assignedTo: selectedAssignedTo || currentUser.id,
           agencyId: currentAgency?.id || '',
           leadId: selectedLeadId || undefined,
           propertyId: selectedPropertyId || undefined
@@ -79,7 +73,6 @@ export const Tasks: React.FC = () => {
       setIsEditing(true);
       setEditingTaskId(task.id);
       setNewTaskTitle(task.title);
-      // Garantir formato yyyy-MM-ddThh:mm para o input datetime-local
       let dateValue = task.dueDate;
       if (dateValue.length > 16) {
           dateValue = dateValue.substring(0, 16);
@@ -87,10 +80,11 @@ export const Tasks: React.FC = () => {
       setNewTaskDate(dateValue);
       setSelectedLeadId(task.leadId || '');
       setSelectedPropertyId(task.propertyId || '');
+      setSelectedAssignedTo(task.assignedTo);
   };
 
   const handleDeleteClick = (id: string, e: React.MouseEvent) => {
-      e.stopPropagation(); // Impede cliques acidentais
+      e.stopPropagation();
       setTaskToDelete(id);
       setDeleteModalOpen(true);
   };
@@ -108,6 +102,7 @@ export const Tasks: React.FC = () => {
     setNewTaskDate('');
     setSelectedLeadId('');
     setSelectedPropertyId('');
+    setSelectedAssignedTo(currentUser?.id || '');
     setIsEditing(false);
     setEditingTaskId(null);
   };
@@ -122,42 +117,45 @@ export const Tasks: React.FC = () => {
       return properties.find(p => p.id === propId) || null;
   };
 
-  // --- LÓGICA DE FILTRO POR DATA ---
+  const getUserObj = (userId: string) => {
+      return users.find(u => u.id === userId);
+  };
+
   const filteredTasks = tasks.filter(t => {
       const taskDate = new Date(formatTaskDate(t.dueDate));
-      taskDate.setHours(0,0,0,0); // Ignora hora para comparação de dia
+      taskDate.setHours(0,0,0,0); 
       
       const today = new Date();
       today.setHours(0,0,0,0);
 
       if (filterMode === 'week') {
-          // Semana: De Hoje até Hoje + 7 dias (Futuro Próximo)
           const nextWeek = new Date(today);
           nextWeek.setDate(today.getDate() + 7);
           return taskDate >= today && taskDate <= nextWeek;
-      } else {
-          // Histórico: De 90 dias atrás até Ontem (Passado Recente)
+      } else if (filterMode === 'history') {
           const pastLimit = new Date(today);
           pastLimit.setDate(today.getDate() - 90);
           return taskDate >= pastLimit && taskDate < today;
+      } else {
+          // all_future: Mostra apenas tarefas DEPOIS da semana atual (Today + 7 dias)
+          const nextWeekLimit = new Date(today);
+          nextWeekLimit.setDate(today.getDate() + 7);
+          return taskDate > nextWeekLimit;
       }
   });
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     if (a.completed === b.completed) {
-      // Se ambos completados ou ambos pendentes, ordena por data
-      // Se for histórico, mostra mais recente primeiro. Se for semana, mostra mais próximo primeiro.
       const dateA = new Date(a.dueDate).getTime();
       const dateB = new Date(b.dueDate).getTime();
-      return filterMode === 'week' ? dateA - dateB : dateB - dateA;
+      return filterMode === 'history' ? dateB - dateA : dateA - dateB;
     }
-    // Pendentes primeiro
     return a.completed ? 1 : -1;
   });
 
   return (
     <div className="p-8 h-screen overflow-y-auto">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Minhas Tarefas</h1>
         <p className="text-slate-500 mb-8">Organize seu dia, agende ligações e não perca nenhum compromisso.</p>
 
@@ -174,70 +172,87 @@ export const Tasks: React.FC = () => {
                 )}
             </div>
             
-            <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end flex-wrap">
-                <div className="flex-1 w-full min-w-[200px] min-w-0">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">O que fazer?</label>
-                    <input
-                        type="text"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder="Ex: Ligar para cliente..."
-                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-                
-                <div className="w-full md:w-48">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Quando?</label>
-                    <input
-                        type="datetime-local"
-                        value={newTaskDate}
-                        onChange={(e) => setNewTaskDate(e.target.value)}
-                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row gap-4 items-end w-full">
+                    <div className="flex-1 w-full min-w-[200px] min-w-0">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">O que fazer?</label>
+                        <input
+                            type="text"
+                            value={newTaskTitle}
+                            onChange={(e) => setNewTaskTitle(e.target.value)}
+                            placeholder="Ex: Ligar para cliente..."
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    
+                    <div className="w-full md:w-48">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Quando?</label>
+                        <input
+                            type="datetime-local"
+                            value={newTaskDate}
+                            onChange={(e) => setNewTaskDate(e.target.value)}
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                    </div>
                 </div>
 
-                <div className="w-full md:w-48">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Vincular Lead</label>
-                    <select
-                        value={selectedLeadId}
-                        onChange={(e) => setSelectedLeadId(e.target.value)}
-                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                <div className="flex flex-col md:flex-row gap-4 items-end w-full">
+                    <div className="w-full md:w-1/3">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Responsável</label>
+                        <select
+                            value={selectedAssignedTo}
+                            onChange={(e) => setSelectedAssignedTo(e.target.value)}
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="w-full md:w-1/3">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Vincular Lead</label>
+                        <select
+                            value={selectedLeadId}
+                            onChange={(e) => setSelectedLeadId(e.target.value)}
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                            <option value="">Sem vínculo</option>
+                            {leads.map(lead => (
+                                <option key={lead.id} value={lead.id}>{lead.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="w-full md:w-1/3">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Vincular Imóvel</label>
+                        <select
+                            value={selectedPropertyId}
+                            onChange={(e) => setSelectedPropertyId(e.target.value)}
+                            className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                            <option value="">Sem vínculo</option>
+                            {properties.map(prop => (
+                                <option key={prop.id} value={prop.id}>#{prop.code} - {prop.title}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className={`${isEditing ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center justify-center w-full md:w-auto min-w-[120px] shadow-sm`}
                     >
-                        <option value="">Sem vínculo</option>
-                        {leads.map(lead => (
-                            <option key={lead.id} value={lead.id}>{lead.name}</option>
-                        ))}
-                    </select>
+                        {isEditing ? (
+                            <>
+                                <Save size={20} className="mr-2" /> Atualizar
+                            </>
+                        ) : (
+                            <>
+                                <Plus size={20} className="mr-2" /> Agendar
+                            </>
+                        )}
+                    </button>
                 </div>
-
-                <div className="w-full md:w-48">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Vincular Imóvel</label>
-                    <select
-                        value={selectedPropertyId}
-                        onChange={(e) => setSelectedPropertyId(e.target.value)}
-                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    >
-                        <option value="">Sem vínculo</option>
-                        {properties.map(prop => (
-                            <option key={prop.id} value={prop.id}>#{prop.code} - {prop.title}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <button
-                    type="submit"
-                    className={`${isEditing ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center justify-center w-full md:w-auto min-w-[120px]`}
-                >
-                    {isEditing ? (
-                        <>
-                            <Save size={20} className="mr-2" /> Atualizar
-                        </>
-                    ) : (
-                        <>
-                            <Plus size={20} className="mr-2" /> Agendar
-                        </>
-                    )}
-                </button>
             </form>
         </div>
 
@@ -245,19 +260,24 @@ export const Tasks: React.FC = () => {
             <div className="flex justify-between items-end mb-2">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Lista de Tarefas</h3>
                 
-                {/* Abas de Filtro */}
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                     <button 
                         onClick={() => setFilterMode('week')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition flex items-center ${filterMode === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-medium transition flex items-center ${filterMode === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         <CalendarDays size={16} className="mr-2"/> Esta Semana
                     </button>
                     <button 
-                        onClick={() => setFilterMode('history')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition flex items-center ${filterMode === 'history' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        onClick={() => setFilterMode('all_future')}
+                        className={`px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-medium transition flex items-center ${filterMode === 'all_future' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        <History size={16} className="mr-2"/> Anteriores (90 dias)
+                        <ListChecks size={16} className="mr-2"/> Todas (Futuras)
+                    </button>
+                    <button 
+                        onClick={() => setFilterMode('history')}
+                        className={`px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-medium transition flex items-center ${filterMode === 'history' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <History size={16} className="mr-2"/> Anteriores
                     </button>
                 </div>
             </div>
@@ -266,6 +286,7 @@ export const Tasks: React.FC = () => {
             {sortedTasks.map(task => {
                 const lead = getLeadObj(task.leadId);
                 const prop = getPropertyObj(task.propertyId);
+                const assignedUser = getUserObj(task.assignedTo);
                 const isOverdue = !task.completed && new Date(formatTaskDate(task.dueDate)) < new Date();
                 const isItemEditing = task.id === editingTaskId;
 
@@ -288,9 +309,17 @@ export const Tasks: React.FC = () => {
                         <Check size={14} />
                         </button>
                         <div className="min-w-0 flex-1">
-                        <p className={`font-medium text-slate-800 min-w-0 break-words ${task.completed ? 'line-through' : ''}`}>
-                            {task.title}
-                        </p>
+                        <div className="flex items-center gap-2">
+                            <p className={`font-medium text-slate-800 min-w-0 break-words ${task.completed ? 'line-through' : ''}`}>
+                                {task.title}
+                            </p>
+                            {assignedUser && (
+                                <div className="flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200" title={`Responsável: ${assignedUser.name}`}>
+                                    <img src={assignedUser.avatarUrl} className="w-4 h-4 rounded-full" alt={assignedUser.name} />
+                                    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[80px]">{assignedUser.name}</span>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-3 mt-1">
                             <div className={`flex items-center text-xs ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
                                 <Calendar size={12} className="mr-1" />
@@ -349,7 +378,9 @@ export const Tasks: React.FC = () => {
                 <div className="p-12 text-center text-slate-400">
                     {filterMode === 'week' 
                         ? <p>Nenhuma tarefa agendada para os próximos 7 dias.</p>
-                        : <p>Nenhuma tarefa registrada nos últimos 90 dias.</p>
+                        : filterMode === 'all_future' 
+                            ? <p>Nenhuma tarefa para as próximas semanas.</p>
+                            : <p>Nenhuma tarefa registrada nos últimos 90 dias.</p>
                     }
                 </div>
             )}
@@ -357,7 +388,6 @@ export const Tasks: React.FC = () => {
         </div>
       </div>
       
-      {/* Modal de Confirmação Exclusão */}
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
@@ -368,7 +398,6 @@ export const Tasks: React.FC = () => {
         isDestructive
       />
 
-      {/* MODAL VISUALIZAÇÃO DE IMÓVEL */}
       {viewProperty && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
@@ -407,7 +436,6 @@ export const Tasks: React.FC = () => {
           </div>
       )}
 
-      {/* MODAL VISUALIZAÇÃO DE LEAD */}
       {viewLead && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 p-6 relative">
