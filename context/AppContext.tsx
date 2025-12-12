@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult } from '../types';
-import * as DB from '../services/db';
+import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult, FinancialRecord, LeadInterest, AiMatchOpportunity, AiStaleLeadOpportunity } from '../types.ts';
+import * as DB from '../services/db.ts';
 
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
@@ -13,6 +12,7 @@ interface AppContextType {
     tasks: Task[];
     users: User[];
     messages: Message[];
+    financialRecords: FinancialRecord[];
     currentView: ViewState;
     setCurrentView: (view: ViewState) => void;
     isLoading: boolean;
@@ -25,7 +25,7 @@ interface AppContextType {
     login: (email: string, password: string) => Promise<OperationResult>;
     logout: () => void;
     registerAgency: (agencyName: string, adminName: string, email: string, phone: string, password: string) => Promise<OperationResult>;
-    setAgency: (agency: Agency) => void; // Nova função exposta
+    setAgency: (agency: Agency) => void; 
     
     // CRUD
     addProperty: (property: Property) => Promise<void>;
@@ -39,6 +39,7 @@ interface AppContextType {
     addLead: (lead: Lead) => Promise<void>;
     updateLead: (lead: Lead) => Promise<void>;
     updateLeadStatus: (id: string, status: LeadStatus) => Promise<void>;
+    updateLeadInterestStatus: (leadId: string, propertyId: string, status: LeadStatus) => Promise<void>;
     deleteLead: (id: string) => Promise<void>;
     
     addTask: (task: Task) => Promise<void>;
@@ -61,6 +62,12 @@ interface AppContextType {
     notificationLead: Lead | null;
     dismissNotification: () => void;
 
+    // AI
+    aiOpportunities: AiMatchOpportunity[];
+    setAiOpportunities: (opps: AiMatchOpportunity[]) => void;
+    aiStaleLeads: AiStaleLeadOpportunity[];
+    setAiStaleLeads: (opps: AiStaleLeadOpportunity[]) => void;
+
     isSuperAdmin: boolean;
 }
 
@@ -79,6 +86,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
+
+    // AI State
+    const [aiOpportunities, setAiOpportunitiesState] = useState<AiMatchOpportunity[]>([]);
+    const [aiStaleLeads, setAiStaleLeadsState] = useState<AiStaleLeadOpportunity[]>([]);
 
     // Theme
     const [themeColor, setThemeColor] = useState('#3b82f6');
@@ -88,63 +100,96 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [notificationTask, setNotificationTask] = useState<Task | null>(null);
     const [notificationLead, setNotificationLead] = useState<Lead | null>(null);
 
-    // Auth Initialization
+    // AI Persistence Helper
+    const setAiOpportunities = (opps: AiMatchOpportunity[]) => {
+        setAiOpportunitiesState(opps);
+        localStorage.setItem('imob_ai_opportunities', JSON.stringify(opps));
+    };
+
+    const setAiStaleLeads = (opps: AiStaleLeadOpportunity[]) => {
+        setAiStaleLeadsState(opps);
+        localStorage.setItem('imob_ai_stale_leads', JSON.stringify(opps));
+    }
+
+    // Helper to clean object before sending to DB (removes temporary props like _daysInactive)
+    const sanitizeLead = (lead: Lead) => {
+        const { ...cleanLead } = lead;
+        // Remove properties starting with _
+        Object.keys(cleanLead).forEach(key => {
+            if (key.startsWith('_')) {
+                delete (cleanLead as any)[key];
+            }
+        });
+        return cleanLead;
+    };
+
+    // Auth Initialization & Load Data
     useEffect(() => {
         const initAuth = async () => {
             setIsLoading(true);
             
-            // Load theme preferences
             const savedColor = localStorage.getItem('imob_theme_color');
             const savedDark = localStorage.getItem('imob_dark_mode');
             if (savedColor) setThemeColor(savedColor);
             if (savedDark) setDarkMode(savedDark === 'true');
 
+            // Load saved AI opportunities
+            const savedAiOpps = localStorage.getItem('imob_ai_opportunities');
+            if (savedAiOpps) {
+                try {
+                    setAiOpportunitiesState(JSON.parse(savedAiOpps));
+                } catch (e) {
+                    console.error("Failed to parse saved AI opportunities", e);
+                }
+            }
+
+            // Load saved AI Stale Leads
+            const savedAiStale = localStorage.getItem('imob_ai_stale_leads');
+            if (savedAiStale) {
+                try {
+                    setAiStaleLeadsState(JSON.parse(savedAiStale));
+                } catch (e) {
+                    console.error("Failed to parse saved AI stale leads", e);
+                }
+            }
+
             const savedUserId = localStorage.getItem('imob_user_id');
             if (savedUserId) {
                 try {
-                    // Try to fetch user
                     const users = await DB.getAll<User>('users', { column: 'id', value: savedUserId });
                     if (users && users.length > 0) {
                         const user = users[0];
                         setCurrentUser(user);
                         
-                        // Load Agency
                         const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
                         if (agencies && agencies.length > 0) {
                             setCurrentAgency(agencies[0]);
-                            setCurrentView('DASHBOARD');
+                            // Mantém Landing Page
                         }
                     } else {
-                        // User ID invalid (maybe deleted), clear storage
                         localStorage.removeItem('imob_user_id');
                     }
                 } catch (error) {
                     console.error("Auth init error", error);
                 }
-            } else {
-                // Not logged in
             }
             setIsLoading(false);
         };
         
-        // Seed database if empty
         DB.seedDatabase().then(() => initAuth());
     }, []);
 
-    // Theme persistence
     useEffect(() => {
         localStorage.setItem('imob_theme_color', themeColor);
         localStorage.setItem('imob_dark_mode', String(darkMode));
     }, [themeColor, darkMode]);
 
-    // Data Loading when Logged In
     useEffect(() => {
         if (!currentUser || !currentAgency) return;
 
         const loadData = async () => {
             const agencyId = currentAgency.id;
             
-            // Load all data for this agency
             const props = await DB.getAll<Property>('properties', { column: 'agencyId', value: agencyId });
             setProperties(props || []);
 
@@ -156,38 +201,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             const usrs = await DB.getAll<User>('users', { column: 'agencyId', value: agencyId });
             setUsers(usrs || []);
-            
-            // Check for overdue tasks for notifications (mock logic)
-            const dueTasks = tsks.filter(t => !t.completed && new Date(t.dueDate) <= new Date());
-            if (dueTasks.length > 0) {
-                // Notify random overdue task just for demo
-                // setNotificationTask(dueTasks[0]);
+
+            try {
+                const recs = await DB.getAll<FinancialRecord>('financial_records', { column: 'agencyId', value: agencyId });
+                setFinancialRecords(recs || []);
+            } catch (e) {
+                // Tabela pode não existir ainda se o usuário não rodou migration, ignorar silenciosamente
+                console.log('Financial records table might not exist yet.');
             }
         };
 
         loadData();
     }, [currentUser, currentAgency]);
 
-    // Polling for New Leads (Real-time simulation)
+    // Monitoramento de Novos Leads
     useEffect(() => {
         if (!currentUser || !currentAgency) return;
 
         const interval = setInterval(async () => {
-            // Check for leads created in the last 30 seconds
             const now = new Date();
             const thirtySecondsAgo = new Date(now.getTime() - 30000);
             
             try {
-                // Re-fetch leads to check for updates
                 const latestLeads = await DB.getAll<Lead>('leads', { column: 'agencyId', value: currentAgency.id });
                 
-                // If count changed or we find a very new lead
                 if (latestLeads.length > leads.length) {
-                    // Find the new one
                     const newLead = latestLeads.find(l => new Date(l.createdAt) > thirtySecondsAgo);
                     if (newLead) {
                         setNotificationLead(newLead);
-                        // Play sound
                         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                         audio.play().catch(e => console.log('Audio play failed', e));
                     }
@@ -196,12 +237,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } catch (e) {
                 // silent fail
             }
-        }, 30000); // Poll every 30s
+        }, 30000); 
 
         return () => clearInterval(interval);
     }, [currentUser, currentAgency, leads]);
 
-    // --- ACTIONS ---
+    // Monitoramento de Tarefas Agendadas (Alarme)
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const interval = setInterval(() => {
+            const now = new Date();
+            
+            // Procura tarefas não concluídas cuja data/hora seja agora (janela de 30s para evitar repetição excessiva ou perda)
+            const dueTask = tasks.find(t => {
+                if (t.completed) return false;
+                const dueDate = new Date(t.dueDate);
+                // Verifica se a data é válida
+                if (isNaN(dueDate.getTime())) return false;
+
+                const diff = now.getTime() - dueDate.getTime();
+                
+                // Se a tarefa venceu nos últimos 20 segundos (janela de disparo)
+                // Isso garante que só dispara quando "chega a hora"
+                return diff >= 0 && diff < 20000; 
+            });
+
+            // Se encontrou tarefa e ela ainda não é a notificação atual
+            if (dueTask && notificationTask?.id !== dueTask.id) {
+                setNotificationTask(dueTask);
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(e => console.log('Audio error', e));
+            }
+        }, 10000); // Verifica a cada 10 segundos
+
+        return () => clearInterval(interval);
+    }, [currentUser, tasks, notificationTask]);
 
     const login = async (email: string, password: string): Promise<OperationResult> => {
         try {
@@ -209,7 +280,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const user = users.find(u => u.password === password || u.password === undefined); 
             
             if (user) {
-                // Load Agency to check approval
                 const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
                 
                 if (!agencies || agencies.length === 0) {
@@ -218,9 +288,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
                 const agency = agencies[0];
 
-                // Check Approval Logic
                 if (!agency.isApproved) {
-                    // Check Trial
                     if (agency.trialExpiresAt) {
                         const today = new Date();
                         const expiration = new Date(agency.trialExpiresAt);
@@ -229,7 +297,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                             return { success: false, message: 'Período de teste expirado. Entre em contato para liberar o acesso.' };
                         }
                     } else {
-                        // No trial date set, and not approved
                         return { success: false, message: 'Seu cadastro está em análise. Aguarde a aprovação do administrador.' };
                     }
                 }
@@ -239,7 +306,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setCurrentAgency(agency);
                 setCurrentView('DASHBOARD');
                 
-                // Update login count
                 await DB.updateItem('users', { ...user, loginCount: (user.loginCount || 0) + 1 });
                 
                 return { success: true };
@@ -252,19 +318,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const logout = () => {
         localStorage.removeItem('imob_user_id');
+        // Não remover 'imob_ai_opportunities' nem 'imob_ai_stale_leads' para persistir os dados da IA
         setCurrentUser(null);
         setCurrentAgency(null);
-        setCurrentView('LANDING'); // Volta para a Landing Page
+        setCurrentView('LANDING'); 
         setProperties([]);
         setLeads([]);
         setTasks([]);
         setUsers([]);
-        window.location.reload(); // Force reload to clear states
+        setAiOpportunitiesState([]);
+        setAiStaleLeadsState([]);
+        window.location.reload(); 
     };
 
     const registerAgency = async (agencyName: string, adminName: string, email: string, phone: string, password: string): Promise<OperationResult> => {
         try {
-            // Check duplicate email first
             const existingUsers = await DB.getAll<User>('users', { column: 'email', value: email });
             if (existingUsers.length > 0) {
                 return { success: false, message: 'Este e-mail já está em uso.' };
@@ -273,7 +341,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const agencyId = uuid();
             const userId = uuid();
 
-            // Set Trial Date: Now + 3 Days
             const trialDate = new Date();
             trialDate.setDate(trialDate.getDate() + 3);
 
@@ -281,7 +348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 id: agencyId,
                 name: agencyName,
                 createdAt: new Date().toISOString(),
-                isApproved: false, // Default blocked until approved or trial check
+                isApproved: false, 
                 trialExpiresAt: trialDate.toISOString(),
                 phone: phone
             };
@@ -308,10 +375,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- PROPERTY ACTIONS ---
-
     const addProperty = async (property: Property) => {
-        // Calculate new code
         const nextCode = getNextPropertyCode();
         const propertyWithCode = { ...property, code: nextCode };
         
@@ -326,16 +390,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const deleteProperty = async (id: string) => {
         try {
-            // 1. Get Property to find images
             const propertyToDelete = properties.find(p => p.id === id);
-            
-            // 2. Delete from DB
             await DB.deleteItem('properties', id);
-            
-            // 3. Remove form State
             setProperties(prev => prev.filter(p => p.id !== id));
-
-            // 4. Delete images from Storage (Fire and Forget)
             if (propertyToDelete && propertyToDelete.images && propertyToDelete.images.length > 0) {
                 DB.deleteStorageImages(propertyToDelete.images);
             }
@@ -345,6 +402,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const markPropertyAsSold = async (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string) => {
+        // Encontra o imóvel atual para acessar as imagens
+        const currentProp = properties.find(p => p.id === id);
+        let finalImages = currentProp?.images || [];
+
+        // Lógica de Otimização de Armazenamento:
+        // Se houver mais de 1 foto, deleta todas exceto a capa (índice 0)
+        if (currentProp && currentProp.images && currentProp.images.length > 1) {
+            const imagesToDelete = currentProp.images.slice(1); // Pega do índice 1 em diante
+            finalImages = [currentProp.images[0]]; // Mantém apenas a capa
+
+            // Deleta do Storage
+            await DB.deleteStorageImages(imagesToDelete);
+        }
+
         const update = {
             id,
             status: 'Sold',
@@ -352,19 +423,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             soldToLeadId: leadId,
             soldByUserId,
             salePrice,
-            commissionValue: commission
+            commissionValue: commission,
+            images: finalImages // Salva o array atualizado (apenas capa)
         };
+        
         // @ts-ignore - Partial update
         await DB.updateItem('properties', update);
         setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } as Property : p));
         
-        // If sold to lead, update lead status
         if (leadId) {
-            updateLeadStatus(leadId, LeadStatus.CLOSED);
+            // Ao vender, se o lead existir, podemos fechar a negociação deste imóvel
+            updateLeadInterestStatus(leadId, id, LeadStatus.CLOSED);
         }
     };
 
     const reactivateProperty = async (id: string) => {
+        // Ao reativar (Encerrar contrato), salvar histórico se for locação ou venda antiga
+        const prop = properties.find(p => p.id === id);
+        
+        if (prop && prop.status === 'Sold' && currentAgency) {
+            try {
+                const historyRecord: FinancialRecord = {
+                    id: uuid(),
+                    agencyId: currentAgency.id,
+                    propertyId: prop.id,
+                    type: prop.type.includes('Locação') ? 'Rental' : 'Sale',
+                    value: prop.salePrice || 0,
+                    commission: prop.commissionValue || 0,
+                    date: prop.soldAt || new Date().toISOString(),
+                    endDate: new Date().toISOString(), // Data do encerramento
+                    leadId: prop.soldToLeadId,
+                    brokerId: prop.soldByUserId
+                };
+                
+                await DB.addItem('financial_records', historyRecord);
+                setFinancialRecords(prev => [...prev, historyRecord]);
+            } catch (e) {
+                console.error("Erro ao salvar histórico financeiro:", e);
+                // Não bloqueia a reativação, mas avisa no console
+            }
+        }
+
         const update = {
             id,
             status: 'Active',
@@ -380,7 +479,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const readjustRental = async (id: string, newRent: number, newComm: number, date: string) => {
-        // Find property to get current notes
         const prop = properties.find(p => p.id === id);
         const oldRent = prop?.salePrice || 0;
         const oldComm = prop?.commissionValue || 0;
@@ -405,22 +503,93 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return max + 1;
     };
 
-    // --- LEAD ACTIONS ---
-
     const addLead = async (lead: Lead) => {
-        const saved = await DB.addItem<Lead>('leads', lead);
-        setLeads(prev => [saved, ...prev]); // Prepend
-        setNotificationLead(saved); // Trigger notification
+        try {
+            // Garantir que interests esteja preenchido com base em interestedInPropertyIds
+            const interests: LeadInterest[] = lead.interests || [];
+            if (interests.length === 0 && lead.interestedInPropertyIds.length > 0) {
+                lead.interestedInPropertyIds.forEach(propId => {
+                    interests.push({
+                        propertyId: propId,
+                        status: LeadStatus.NEW,
+                        updatedAt: new Date().toISOString()
+                    });
+                });
+            }
+            
+            const leadToSave = sanitizeLead({ ...lead, interests });
+            
+            const saved = await DB.addItem<Lead>('leads', leadToSave);
+            setLeads(prev => [saved, ...prev]); 
+            setNotificationLead(saved); 
+        } catch (e) {
+            console.error("Failed to add lead", e);
+            // Ignora o erro se for apenas o interests (schema antigo), mas tenta salvar sem
+            if ((e as any).code === '42703') {
+                 // Retry without interests
+                 const { interests, ...oldSchemaLead } = lead;
+                 await DB.addItem('leads', oldSchemaLead);
+                 // We don't update local state with interests to reflect db state, 
+                 // but we can warn user via DB.addItem alert handled in db.ts
+            }
+        }
     };
 
     const updateLead = async (lead: Lead) => {
-        await DB.updateItem('leads', lead);
-        setLeads(prev => prev.map(l => l.id === lead.id ? lead : l));
+        try {
+            const safeLead = sanitizeLead(lead);
+            await DB.updateItem('leads', safeLead);
+            setLeads(prev => prev.map(l => l.id === lead.id ? lead : l));
+        } catch (e) {
+            console.error("Update lead failed", e);
+        }
     };
 
     const updateLeadStatus = async (id: string, status: LeadStatus) => {
-        await DB.updateItem('leads', { id, status });
-        setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+        try {
+            await DB.updateItem('leads', { id, status });
+            setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+        } catch (e) {
+            console.error("Status update failed", e);
+        }
+    };
+
+    const updateLeadInterestStatus = async (leadId: string, propertyId: string, status: LeadStatus) => {
+        const lead = leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        let newInterests = lead.interests ? [...lead.interests] : [];
+        
+        // Se interests está vazio mas temos interestedInPropertyIds (legado)
+        if (newInterests.length === 0 && lead.interestedInPropertyIds.length > 0) {
+             lead.interestedInPropertyIds.forEach(pid => {
+                 newInterests.push({
+                     propertyId: pid,
+                     status: pid === propertyId ? status : (lead.status || LeadStatus.NEW),
+                     updatedAt: new Date().toISOString()
+                 });
+             });
+        } else {
+            const index = newInterests.findIndex(i => i.propertyId === propertyId);
+            if (index >= 0) {
+                newInterests[index] = { ...newInterests[index], status, updatedAt: new Date().toISOString() };
+            } else {
+                // Adiciona se não existir
+                newInterests.push({ propertyId, status, updatedAt: new Date().toISOString() });
+            }
+        }
+
+        // Garante sincronia do array de strings
+        const newPropertyIds = Array.from(new Set([...lead.interestedInPropertyIds, propertyId]));
+
+        try {
+            await DB.updateItem('leads', { id: leadId, interests: newInterests, interestedInPropertyIds: newPropertyIds });
+            setLeads(prev => prev.map(l => l.id === leadId ? { ...l, interests: newInterests, interestedInPropertyIds: newPropertyIds } : l));
+        } catch (e) {
+            console.error("Update interests failed", e);
+            // Fallback for old schema: update just the global status if it matches the lead's main interest
+            // or just suppress if DB alert already showed.
+        }
     };
 
     const deleteLead = async (id: string) => {
@@ -432,13 +601,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- TASK ACTIONS ---
-
     const addTask = async (task: Task) => {
         const saved = await DB.addItem<Task>('tasks', task);
         setTasks(prev => [...prev, saved]);
-        // Notify just to show it works
-        setNotificationTask(saved);
+        // REMOVIDO: setNotificationTask(saved); -> Não mostra popup ao criar
     };
 
     const updateTask = async (task: Task) => {
@@ -464,12 +630,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- USER ACTIONS ---
-
     const createAgencyUser = async (userData: Partial<User>): Promise<OperationResult> => {
         if (!currentAgency) return { success: false, message: 'Sem agência.' };
         try {
-            // Check Manual Duplication
             const existingUsers = await DB.getAll<User>('users', { column: 'email', value: userData.email! });
             if (existingUsers && existingUsers.length > 0) {
                 return { success: false, message: 'Este e-mail já está em uso.' };
@@ -522,17 +685,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentAgency(agency);
     };
 
-    // --- MESSAGES ---
-
     const loadMessages = async (leadId: string) => {
-        setMessages([]); // Mock empty
+        setMessages([]); 
     };
 
     const addMessage = async (msg: any) => {
         setMessages(prev => [...prev, msg]);
     };
-
-    // --- NOTIFICATIONS ---
     
     const dismissNotification = () => {
         setNotificationTask(null);
@@ -541,18 +700,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return (
         <AppContext.Provider value={{
-            currentUser, currentAgency, properties, leads, tasks, users, messages,
+            currentUser, currentAgency, properties, leads, tasks, users, messages, financialRecords,
             currentView, setCurrentView, isLoading,
             themeColor, setThemeColor, darkMode, setDarkMode,
             login, logout, registerAgency,
             setAgency: setCurrentAgency,
             addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, readjustRental, getNextPropertyCode,
-            addLead, updateLead, updateLeadStatus, deleteLead,
+            addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead,
             addTask, updateTask, toggleTaskCompletion, deleteTask,
             createAgencyUser, updateUser, deleteUser,
             updateAgency,
             loadMessages, addMessage,
             notificationTask, notificationLead, dismissNotification,
+            aiOpportunities, setAiOpportunities,
+            aiStaleLeads, setAiStaleLeads,
             isSuperAdmin: currentUser?.email === 'fernandes_guto@hotmail.com'
         }}>
             {children}
