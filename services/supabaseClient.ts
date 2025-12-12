@@ -1,56 +1,54 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// --- ÁREA DE CONFIGURAÇÃO FIXA (HARDCODED) ---
-// Cole suas chaves dentro das aspas abaixo.
-// Exemplo: const HARDCODED_URL = "https://seu-projeto.supabase.co";
+// Tenta pegar das variáveis de ambiente do Vite/Vercel primeiro
+const ENV_URL = (import.meta as any).env?.VITE_SUPABASE_URL;
+const ENV_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
+// Fallback hardcoded para demonstração (se as env vars não existirem)
 const HARDCODED_URL: string = "https://awrfaunmdqatvdkembjm.supabase.co"; 
 const HARDCODED_KEY: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3cmZhdW5tZHFhdHZka2VtYmptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NTEwNjIsImV4cCI6MjA4MDMyNzA2Mn0.-79q_D7caHzK29hku_uS7t7AX-E9I6tqRq7zLvmSgOs"; 
-// ---------------------------------------------
 
-// Variável para armazenar a instância real do cliente
 let supabaseInstance: SupabaseClient | null = null;
 
-// Funções auxiliares de leitura com prioridade para chaves fixas
 const getUrl = () => {
+    // 1. Prioridade: Variável de Ambiente (Deploy Vercel)
+    if (ENV_URL) return ENV_URL;
+    // 2. Hardcoded (Demo)
     if (HARDCODED_URL && HARDCODED_URL.startsWith('http')) return HARDCODED_URL;
+    // 3. LocalStorage (Configuração Manual na tela de Login)
     return localStorage.getItem('imob_supabase_url');
 };
 
 const getKey = () => {
+    if (ENV_KEY) return ENV_KEY;
     if (HARDCODED_KEY && HARDCODED_KEY.length > 10) return HARDCODED_KEY;
     return localStorage.getItem('imob_supabase_key');
 };
 
-// Verifica se as chaves estão hardcoded no código
 export const isHardcoded = (): boolean => {
-    return !!(HARDCODED_URL && HARDCODED_KEY);
+    return !!(HARDCODED_URL && HARDCODED_KEY) || !!(ENV_URL && ENV_KEY);
 };
 
-// Verifica se está configurado
 export const checkConfiguration = (): boolean => {
     const url = getUrl();
     const key = getKey();
     return !!(url && key);
 };
 
-// --- PROXY CLIENT ---
 export const supabase = new Proxy({} as SupabaseClient, {
     get: (target, prop) => {
-        // Se ainda não inicializou, inicializa agora
         if (!supabaseInstance) {
              const url = getUrl() || 'https://placeholder.supabase.co';
              const key = getKey() || 'placeholder-key';
              supabaseInstance = createClient(url, key);
         }
-        // Encaminha a chamada para a instância real
         return (supabaseInstance as any)[prop];
     }
 });
 
-// Tenta conectar com as credenciais fornecidas para validar se funcionam
 export const validateCredentials = async (url: string, key: string): Promise<{ success: boolean; error?: string }> => {
     try {
-        const cleanUrl = url.trim().replace(/\/$/, ""); // Remove barra final
+        const cleanUrl = url.trim().replace(/\/$/, "");
         const cleanKey = key.trim();
         
         if (!cleanUrl.startsWith('http')) {

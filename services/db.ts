@@ -1,17 +1,12 @@
+import { supabase } from './supabaseClient.ts';
+import { Property, Lead, Task, User, Agency } from '../types.ts';
 
-import { supabase } from './supabaseClient';
-import { Property, Lead, Task, User, Agency } from '../types';
-
-// Tabelas no Supabase devem se chamar: 'properties', 'leads', 'tasks', 'users', 'agencies'
-
-// Helper para fazer upload de imagem para o Supabase Storage
 export const uploadImage = async (file: File): Promise<string | null> => {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Upload para um bucket chamado 'imob-images'
     const { error: uploadError } = await supabase.storage
       .from('imob-images')
       .upload(filePath, file);
@@ -29,40 +24,30 @@ export const uploadImage = async (file: File): Promise<string | null> => {
   }
 };
 
-// Helper para excluir lista de imagens do Storage
 export const deleteStorageImages = async (imageUrls: string[]): Promise<void> => {
     if (!imageUrls || imageUrls.length === 0) return;
 
-    // 1. Filtrar apenas imagens que estão no bucket 'imob-images' deste projeto
-    // Exemplo de URL: https://xyz.supabase.co/storage/v1/object/public/imob-images/nome-do-arquivo.jpg
     const bucketName = 'imob-images';
     
     const filesToDelete = imageUrls
-        .filter(url => url.includes(`/${bucketName}/`)) // Garante que é do nosso bucket
+        .filter(url => url.includes(`/${bucketName}/`))
         .map(url => {
-            // Extrai o nome do arquivo (tudo depois de imob-images/)
             const parts = url.split(`/${bucketName}/`);
-            return parts[1]; // Retorna o caminho do arquivo (ex: '0.1234.jpg')
+            return parts[1];
         })
-        .filter(path => !!path); // Remove nulos/vazios
+        .filter(path => !!path);
 
     if (filesToDelete.length === 0) return;
 
-    console.log(`Excluindo ${filesToDelete.length} imagens do Storage...`);
-
-    // 2. Enviar comando de exclusão para o Supabase
     const { error } = await supabase.storage
         .from(bucketName)
         .remove(filesToDelete);
 
     if (error) {
         console.error('Erro ao excluir imagens do Storage:', error);
-    } else {
-        console.log('Imagens excluídas com sucesso.');
     }
 };
 
-// Updated getAll to accept optional filter
 export const getAll = async <T>(table: string, filter?: { column: string, value: string }): Promise<T[]> => {
   let query = supabase.from(table).select('*');
   
@@ -73,7 +58,14 @@ export const getAll = async <T>(table: string, filter?: { column: string, value:
   const { data, error } = await query;
   
   if (error) {
-    console.error(`Erro ao buscar dados de ${table}.`, error.message);
+    // Tratamento específico para a tabela nova financial_records
+    if (table === 'financial_records' && (error.code === '42P01' || error.message.includes('Could not find the table'))) {
+        console.warn(`[Supabase] Tabela '${table}' não encontrada. O histórico financeiro não será carregado.`);
+        console.info(`DICA: Crie a tabela no SQL Editor do Supabase:\n\nCREATE TABLE public.financial_records (\n  id text not null primary key,\n  "agencyId" text null,\n  "propertyId" text null,\n  type text null,\n  value numeric null,\n  commission numeric null,\n  date timestamp with time zone null,\n  "endDate" timestamp with time zone null,\n  "leadId" text null,\n  "brokerId" text null\n);`);
+        return [];
+    }
+
+    console.error(`Erro ao buscar dados de ${table}.`, error);
     return [];
   }
   return data as T[];
@@ -88,6 +80,12 @@ export const addItem = async <T>(table: string, item: any): Promise<T> => {
 
   if (error) {
     console.error(`Erro ao inserir em ${table}:`, error);
+    if (error.code === '42703') {
+        alert(`Erro de Schema no Banco de Dados (${table}):\n\nUma ou mais colunas necessárias não existem. Verifique se o banco está atualizado.\n\nDetalhe: ${error.message}`);
+    } else if (table === 'financial_records' && (error.code === '42P01' || error.message.includes('Could not find the table'))) {
+       console.warn(`[Supabase] Tabela '${table}' não encontrada. Registro histórico não pôde ser salvo.`);
+       throw new Error("Tabela de histórico não configurada no banco de dados.");
+    }
     throw error;
   }
   return data as T;
@@ -104,45 +102,47 @@ export const updateItem = async <T>(table: string, item: any): Promise<T> => {
 
   if (error) {
     console.error(`Erro ao atualizar em ${table}:`, error);
-    throw error;
+    
+    // Detecção de coluna faltando (Erro comum ao adicionar features novas sem migrar DB)
+    if (error.code === '42703') {
+        let columnName = 'desconhecida';
+        if (error.message.includes('interests')) columnName = 'interests';
+        
+        const sqlSuggestion = columnName === 'interests' 
+            ? `ALTER TABLE leads ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb;`
+            : `Verifique as colunas da tabela ${table}.`;
+
+        alert(`ATENÇÃO: ATUALIZAÇÃO NECESSÁRIA NO BANCO DE DADOS\n\nO sistema tentou salvar dados em uma coluna que ainda não existe na tabela '${table}'.\n\nErro: ${error.message}\n\nSOLUÇÃO:\nExecute o seguinte SQL no seu Supabase:\n\n${sqlSuggestion}`);
+    }
+    
+    throw new Error(error.message || 'Erro desconhecido ao atualizar.');
   }
   return data as T;
 };
 
 export const deleteItem = async (table: string, id: string): Promise<void> => {
-  console.log(`Tentando deletar de ${table} o ID: ${id}...`);
-  
-  // Método padrão de delete (funciona com Policies RLS configuradas corretamente)
   const { error, count } = await supabase.from(table).delete({ count: 'exact' }).eq('id', id);
   
   if (error) {
     console.error(`ERRO ao deletar de ${table}:`, error);
     
-    // Tratamento específico para erro de Foreign Key (Vínculo)
     if (error.code === '23503' || error.message.includes('foreign key')) {
-        throw new Error(`BLOQUEIO DE VÍNCULO (Erro 23503): Não é possível excluir este item pois ele está vinculado a outros registros. \n\nSOLUÇÃO: É necessário ajustar as FOREIGN KEYS no Supabase para CASCADE.`);
+        throw new Error(`BLOQUEIO DE VÍNCULO (Erro 23503): Não é possível excluir este item pois ele está vinculado a outros registros.`);
     }
     
-    // Tratamento para erro de Permissão
     if (error.code === '42501') {
-        throw new Error(`PERMISSÃO NEGADA (Erro 42501): O banco de dados bloqueou a exclusão. Verifique as Policies (RLS) no Supabase.`);
+        throw new Error(`PERMISSÃO NEGADA (Erro 42501): O banco de dados bloqueou a exclusão.`);
     }
 
     throw new Error(`Erro Supabase: ${error.message}`);
   }
   
-  // Se não deu erro mas não deletou nada (RLS silencioso ou ID não existe)
   if (count === 0) {
-      throw new Error(`NENHUM ITEM APAGADO. Isso geralmente acontece quando o RLS (Row Level Security) está ativo mas não existe uma política de 'DELETE' para a tabela '${table}'. \n\nSOLUÇÃO: Crie uma Policy no Supabase permitindo DELETE.`);
+      throw new Error(`NENHUM ITEM APAGADO.`);
   }
-  
-  console.log(`Sucesso! Item deletado de ${table}.`);
 };
 
-// --- SEED DATABASE MULTI-TENANT ---
-
 export const seedDatabase = async () => {
-  // Verifica agências
   const { count, error } = await supabase.from('agencies').select('*', { count: 'exact', head: true });
   
   if (error) {
@@ -151,9 +151,8 @@ export const seedDatabase = async () => {
   }
   
   if (count === 0) {
-    console.log('Banco vazio. Criando Agências de Exemplo...');
+    console.log('Banco vazio. Criando dados de exemplo...');
     
-    // 1. Criar Agências
     const agency1Id = 'agency-alpha';
     const agency2Id = 'agency-beta';
 
@@ -172,7 +171,6 @@ export const seedDatabase = async () => {
         }
     ]);
 
-    // 2. Criar Usuários vinculados a Agências (com senha padrão 123456)
     const users = [
       { id: 'u1', name: 'Ana Silva', email: 'ana@alpha.com', password: '123', role: 'Admin', avatarUrl: 'https://picsum.photos/id/64/100/100', agencyId: agency1Id },
       { id: 'u2', name: 'Carlos Oliveira', email: 'carlos@alpha.com', password: '123', role: 'Broker', avatarUrl: 'https://picsum.photos/id/91/100/100', agencyId: agency1Id },
@@ -180,7 +178,6 @@ export const seedDatabase = async () => {
     ];
     await supabase.from('users').insert(users);
 
-    // 3. Imóveis para Alpha
     const propsAlpha = [
         {
             id: 'p1',
@@ -202,42 +199,13 @@ export const seedDatabase = async () => {
             features: ['Piscina', 'Academia'],
             ownerName: 'Marcos Paulo',
             ownerPhone: '(11) 98765-4321',
-            internalNotes: 'Proprietário aceita permuta por imóvel menor.',
+            internalNotes: 'Proprietário aceita permuta.',
             brokerId: 'u1',
             agencyId: agency1Id
         }
     ];
     await supabase.from('properties').insert(propsAlpha);
 
-    // 4. Imóveis para Beta (Alpha não deve ver isso)
-    const propsBeta = [
-        {
-            id: 'p2',
-            code: 1,
-            title: 'Casa de Campo',
-            description: 'Lugar tranquilo.',
-            type: 'Venda',
-            category: 'Residencial',
-            subtype: 'Chácara',
-            price: 550000,
-            address: 'Estrada das Flores, km 5',
-            neighborhood: 'Zona Rural',
-            city: 'Atibaia',
-            state: 'SP',
-            bedrooms: 4,
-            bathrooms: 3,
-            area: 300,
-            images: ['https://picsum.photos/id/124/800/600'],
-            features: ['Jardim', 'Lareira'],
-            ownerName: 'Dona Maria',
-            ownerPhone: '(11) 91234-5678',
-            brokerId: 'u3',
-            agencyId: agency2Id
-        }
-    ];
-    await supabase.from('properties').insert(propsBeta);
-
-    // 5. Leads
     await supabase.from('leads').insert([
          {
             id: 'l1',
@@ -247,6 +215,9 @@ export const seedDatabase = async () => {
             type: 'Buyer',
             status: 'Novo',
             interestedInPropertyIds: ['p1'],
+            // Se o seed rodar em uma tabela nova, pode falhar se 'interests' não existir, mas seed usually runs on empty DB
+            // Se a coluna não existir, o insert vai ignorar campos extras se for flexível ou falhar.
+            // Para segurança do seed, não incluiremos interests aqui para garantir compatibilidade inicial.
             agencyId: agency1Id
          }
     ]);
