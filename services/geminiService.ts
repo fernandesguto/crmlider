@@ -1,14 +1,28 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PropertyType, Property, Lead, AiMatchOpportunity, AiStaleLeadOpportunity, LeadStatus } from "../types";
 
-// Acesso seguro ao process.env para evitar crash no navegador
+// Função robusta para pegar a chave em qualquer ambiente (Vite, Vercel, Local)
 const getApiKey = () => {
+  // 1. Tenta o padrão oficial do Vite (Produção/Vercel)
+  // @ts-ignore
+  if (import.meta.env && import.meta.env.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
+  
+  // 2. Tenta o padrão injetado via define (Local/Process)
   try {
     // @ts-ignore
-    return (typeof process !== 'undefined' && process.env && process.env.API_KEY) || '';
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+        // @ts-ignore
+        return process.env.API_KEY;
+    }
   } catch (e) {
-    return '';
+    // ignore
   }
+
+  return '';
 };
 
 const apiKey = getApiKey();
@@ -16,6 +30,10 @@ const apiKey = getApiKey();
 const getAiClient = () => {
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
+};
+
+export const isAiConfigured = (): boolean => {
+  return !!getApiKey();
 };
 
 export const generatePropertyDescription = async (
@@ -67,7 +85,7 @@ export const generatePropertyDescription = async (
 
 export const askRealEstateAgent = async (question: string): Promise<string> => {
     const ai = getAiClient();
-    if (!ai) return "Erro: Chave de API não configurada.";
+    if (!ai) return "Erro: Chave de API não configurada. Verifique se a variável VITE_API_KEY está definida na Vercel.";
 
     const prompt = `
         Você é um consultor jurídico, financeiro e comercial sênior do mercado imobiliário brasileiro (CRECI/OAB).
