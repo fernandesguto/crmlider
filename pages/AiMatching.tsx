@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, BrainCircuit, User, Building2, ArrowRight, MessageCircle, RefreshCw, AlertCircle, Percent, Clock, CheckCircle, XCircle, AlertTriangle, Search, Bot, BookOpen, Lock, ChevronDown, ChevronUp, MapPin, DollarSign, X, Filter } from 'lucide-react';
-import { findOpportunities, analyzeStaleLeads, askRealEstateAgent } from '../services/geminiService';
+import { Sparkles, BrainCircuit, User, Building2, ArrowRight, MessageCircle, RefreshCw, AlertCircle, Percent, Clock, CheckCircle, XCircle, AlertTriangle, Search, Bot, BookOpen, Lock, ChevronDown, ChevronUp, MapPin, DollarSign, X, Filter, Settings2 } from 'lucide-react';
+import { findOpportunities, analyzeStaleLeads, askRealEstateAgent, isAiConfigured } from '../services/geminiService';
 import { AiMatchOpportunity, Lead, Property, LeadStatus, AiStaleLeadOpportunity } from '../types';
 
 export const AiMatching: React.FC = () => {
@@ -11,6 +11,7 @@ export const AiMatching: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [canRunToday, setCanRunToday] = useState(true);
     const [activeTab, setActiveTab] = useState<'matches' | 'stale' | 'chat'>('matches');
+    const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
 
     // Analysis Filters
     const [targetLeadId, setTargetLeadId] = useState('');
@@ -29,6 +30,8 @@ export const AiMatching: React.FC = () => {
     const STORAGE_KEY_CHAT = `imob_ai_chat_limit_${currentUser?.id}`;
 
     useEffect(() => {
+        setIsApiKeyMissing(!isAiConfigured());
+
         const checkRunLimit = () => {
             const lastRun = localStorage.getItem(STORAGE_KEY_RUN);
             const today = new Date().toLocaleDateString('pt-BR');
@@ -62,6 +65,11 @@ export const AiMatching: React.FC = () => {
     };
 
     const handleRunAnalysis = async () => {
+        if (isApiKeyMissing) {
+            alert("Configure a chave da API na Vercel (VITE_API_KEY) para usar este recurso.");
+            return;
+        }
+
         // Permite rodar se for Super Admin OU se ainda não rodou hoje OU se for uma análise específica (manual)
         const isManualRun = targetLeadId || targetPropertyId;
         
@@ -231,10 +239,11 @@ export const AiMatching: React.FC = () => {
 
     // Determine button state and label
     const isManualRun = !!(targetLeadId || targetPropertyId);
-    const isDisabled = isLoading || (!isSuperAdmin && !canRunToday && hasAnyResults && !isManualRun);
+    const isDisabled = isApiKeyMissing || isLoading || (!isSuperAdmin && !canRunToday && hasAnyResults && !isManualRun);
     
     let buttonLabel = 'Executar Análise IA';
-    if (isLoading) buttonLabel = 'Analisando...';
+    if (isApiKeyMissing) buttonLabel = 'IA Desativada';
+    else if (isLoading) buttonLabel = 'Analisando...';
     else if (targetLeadId) buttonLabel = 'Encontrar Imóveis para Cliente';
     else if (targetPropertyId) buttonLabel = 'Encontrar Clientes para Imóvel';
     else if (!isSuperAdmin && !canRunToday && hasAnyResults) buttonLabel = 'Análise de Hoje Concluída';
@@ -242,6 +251,19 @@ export const AiMatching: React.FC = () => {
 
     return (
         <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
+            {isApiKeyMissing && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-4">
+                    <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
+                    <div>
+                        <h3 className="text-amber-800 font-bold">Chave de API não configurada</h3>
+                        <p className="text-amber-700 text-sm mt-1">
+                            Para funcionar na Vercel (Produção), você deve usar o nome <code>VITE_API_KEY</code>.
+                        </p>
+                        <code className="block bg-amber-100 text-amber-900 px-2 py-1 rounded text-xs mt-2 font-mono">VITE_API_KEY=sua_chave</code>
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center">
@@ -384,15 +406,15 @@ export const AiMatching: React.FC = () => {
                                 type="text" 
                                 value={chatQuery}
                                 onChange={(e) => setChatQuery(e.target.value)}
-                                placeholder={questionsRemaining > 0 || isSuperAdmin ? "Ex: Quais documentos necessários para financiamento Caixa?" : "Limite diário atingido. Volte amanhã."}
-                                disabled={(!isSuperAdmin && questionsRemaining === 0) || isChatLoading}
+                                placeholder={isApiKeyMissing ? "Chat desativado (sem chave de API)" : (questionsRemaining > 0 || isSuperAdmin ? "Ex: Quais documentos necessários para financiamento Caixa?" : "Limite diário atingido. Volte amanhã.")}
+                                disabled={isApiKeyMissing || (!isSuperAdmin && questionsRemaining === 0) || isChatLoading}
                                 className={`w-full pl-6 pr-14 py-4 rounded-xl border shadow-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg transition
-                                    ${!isSuperAdmin && questionsRemaining === 0 ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-900'}
+                                    ${(isApiKeyMissing || (!isSuperAdmin && questionsRemaining === 0)) ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-900'}
                                 `}
                             />
                             <button 
                                 type="submit" 
-                                disabled={isChatLoading || !chatQuery.trim() || (!isSuperAdmin && questionsRemaining === 0)}
+                                disabled={isApiKeyMissing || isChatLoading || !chatQuery.trim() || (!isSuperAdmin && questionsRemaining === 0)}
                                 className="absolute right-2 top-2 bottom-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg px-4 flex items-center justify-center hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isChatLoading ? <RefreshCw className="animate-spin" size={20}/> : (!isSuperAdmin && questionsRemaining === 0) ? <Lock size={20}/> : <Search size={20}/>}
@@ -400,19 +422,19 @@ export const AiMatching: React.FC = () => {
                         </form>
 
                         {chatResponse && (
-                            <div className="max-w-3xl mx-auto bg-slate-50 rounded-xl p-6 border border-slate-200 animate-in fade-in zoom-in-95">
+                            <div className={`max-w-3xl mx-auto rounded-xl p-6 border animate-in fade-in zoom-in-95 ${chatResponse.startsWith('Erro:') ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-sm mt-1">
-                                        <Bot size={20} />
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-sm mt-1 ${chatResponse.startsWith('Erro:') ? 'bg-red-500' : 'bg-gradient-to-br from-purple-500 to-indigo-600'}`}>
+                                        {chatResponse.startsWith('Erro:') ? <AlertCircle size={20} /> : <Bot size={20} />}
                                     </div>
-                                    <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                    <div className={`prose prose-slate max-w-none leading-relaxed whitespace-pre-wrap ${chatResponse.startsWith('Erro:') ? 'text-red-700 font-medium' : 'text-slate-700'}`}>
                                         {chatResponse}
                                     </div>
                                 </div>
                             </div>
                         )}
                         
-                        {!chatResponse && !isChatLoading && (questionsRemaining > 0 || isSuperAdmin) && (
+                        {!chatResponse && !isChatLoading && (questionsRemaining > 0 || isSuperAdmin) && !isApiKeyMissing && (
                             <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                                 <button onClick={() => setChatQuery("Quais documentos para o Minha Casa Minha Vida?")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition text-left text-sm text-slate-600">
                                     <span className="font-bold block text-slate-800 mb-1">🏡 Financiamento</span>
@@ -450,7 +472,7 @@ export const AiMatching: React.FC = () => {
                     <p className="text-slate-500 text-center max-w-md mb-8">
                         Selecione um cliente ou imóvel acima para uma análise focada, ou rode uma análise geral para cruzar todos os perfis.
                     </p>
-                    <button onClick={handleRunAnalysis} className="text-purple-600 font-bold hover:underline">
+                    <button onClick={handleRunAnalysis} disabled={isApiKeyMissing} className={`text-purple-600 font-bold hover:underline ${isApiKeyMissing ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         Iniciar Análise Agora
                     </button>
                 </div>
