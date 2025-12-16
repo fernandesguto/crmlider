@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, BrainCircuit, User, Building2, ArrowRight, MessageCircle, RefreshCw, AlertCircle, Percent, Clock, CheckCircle, XCircle, AlertTriangle, Search, Bot, BookOpen, Lock, ChevronDown, ChevronUp, MapPin, DollarSign, X, Filter, Settings2 } from 'lucide-react';
-import { findOpportunities, analyzeStaleLeads, askRealEstateAgent, isAiConfigured } from '../services/geminiService';
+import { findOpportunities, analyzeStaleLeads, askRealEstateAgent, isAiConfigured, getDebugInfo } from '../services/geminiService';
 import { AiMatchOpportunity, Lead, Property, LeadStatus, AiStaleLeadOpportunity } from '../types';
 
 export const AiMatching: React.FC = () => {
@@ -12,6 +12,7 @@ export const AiMatching: React.FC = () => {
     const [canRunToday, setCanRunToday] = useState(true);
     const [activeTab, setActiveTab] = useState<'matches' | 'stale' | 'chat'>('matches');
     const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<any>(null);
 
     // Analysis Filters
     const [targetLeadId, setTargetLeadId] = useState('');
@@ -30,7 +31,9 @@ export const AiMatching: React.FC = () => {
     const STORAGE_KEY_CHAT = `imob_ai_chat_limit_${currentUser?.id}`;
 
     useEffect(() => {
-        setIsApiKeyMissing(!isAiConfigured());
+        const configured = isAiConfigured();
+        setIsApiKeyMissing(!configured);
+        setDebugInfo(getDebugInfo());
 
         const checkRunLimit = () => {
             const lastRun = localStorage.getItem(STORAGE_KEY_RUN);
@@ -66,7 +69,7 @@ export const AiMatching: React.FC = () => {
 
     const handleRunAnalysis = async () => {
         if (isApiKeyMissing) {
-            alert("Configure a chave da API na Vercel (VITE_API_KEY) para usar este recurso.");
+            alert("Erro: API Key não configurada. Verifique o painel de diagnóstico na tela.");
             return;
         }
 
@@ -252,14 +255,24 @@ export const AiMatching: React.FC = () => {
     return (
         <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
             {isApiKeyMissing && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-4">
-                    <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
-                    <div>
-                        <h3 className="text-amber-800 font-bold">Chave de API não configurada</h3>
-                        <p className="text-amber-700 text-sm mt-1">
-                            Para funcionar na Vercel (Produção), você deve usar o nome <code>VITE_API_KEY</code>.
-                        </p>
-                        <code className="block bg-amber-100 text-amber-900 px-2 py-1 rounded text-xs mt-2 font-mono">VITE_API_KEY=sua_chave</code>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                    <div className="flex items-start gap-4">
+                        <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
+                        <div className="flex-1">
+                            <h3 className="text-amber-800 font-bold">Diagnóstico de API Key</h3>
+                            <p className="text-amber-700 text-sm mt-1">
+                                O sistema não detectou a chave da Inteligência Artificial.
+                            </p>
+                            <div className="mt-3 bg-white/60 p-3 rounded text-xs font-mono text-amber-900 border border-amber-200 shadow-sm">
+                                <p className="mb-1"><strong>Status das Variáveis:</strong></p>
+                                <p>VITE_API_KEY detectada? {debugInfo?.viteEnv ? '✅ SIM' : '❌ NÃO'}</p>
+                                <p>process.env.API_KEY detectada? {debugInfo?.processEnv ? '✅ SIM' : '❌ NÃO'}</p>
+                                <p className="mt-1">Comprimento da chave lida: {debugInfo?.keyLength || 0} caracteres</p>
+                            </div>
+                            <p className="text-amber-700 text-xs mt-3">
+                                <strong>Solução (Vercel):</strong> Vá em Settings {'>'} Environment Variables. Adicione <code>VITE_API_KEY</code>. Depois vá em Deployments e clique em <strong>Redeploy</strong>. Apenas adicionar não funciona sem o redeploy.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
