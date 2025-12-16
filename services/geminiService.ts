@@ -1,28 +1,42 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { PropertyType, Property, Lead, AiMatchOpportunity, AiStaleLeadOpportunity, LeadStatus } from "../types";
 
 // Função robusta para pegar a chave em qualquer ambiente (Vite, Vercel, Local)
 const getApiKey = () => {
+  let key = '';
+  
+  // Debug no Console (F12)
+  console.log("[ImobERP Debug] Tentando carregar API Key...");
+
   // 1. Tenta o padrão oficial do Vite (Produção/Vercel)
   // @ts-ignore
   if (import.meta.env && import.meta.env.VITE_API_KEY) {
+    console.log("[ImobERP Debug] VITE_API_KEY encontrada.");
     // @ts-ignore
-    return import.meta.env.VITE_API_KEY;
+    key = import.meta.env.VITE_API_KEY;
+  } else {
+    console.log("[ImobERP Debug] VITE_API_KEY NÃO encontrada em import.meta.env");
   }
   
-  // 2. Tenta o padrão injetado via define (Local/Process)
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+  // 2. Tenta o padrão injetado via define (Local/Process) se a anterior falhar
+  if (!key) {
+      try {
         // @ts-ignore
-        return process.env.API_KEY;
-    }
-  } catch (e) {
-    // ignore
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+            console.log("[ImobERP Debug] process.env.API_KEY encontrada.");
+            // @ts-ignore
+            key = process.env.API_KEY;
+        }
+      } catch (e) {
+        // ignore
+      }
   }
 
-  return '';
+  if (!key) {
+      console.error("[ImobERP Debug] CRÍTICO: Nenhuma chave de API encontrada. Verifique as variáveis de ambiente na Vercel.");
+  }
+
+  return key;
 };
 
 const apiKey = getApiKey();
@@ -34,6 +48,36 @@ const getAiClient = () => {
 
 export const isAiConfigured = (): boolean => {
   return !!getApiKey();
+};
+
+export const getDebugInfo = () => {
+    const info = {
+        viteEnv: false,
+        processEnv: false,
+        keyLength: 0,
+        hasKey: false
+    };
+
+    try {
+        // @ts-ignore
+        if (import.meta.env && import.meta.env.VITE_API_KEY) {
+            info.viteEnv = true;
+            // @ts-ignore
+            info.keyLength = import.meta.env.VITE_API_KEY.length;
+        }
+    } catch(e) {}
+
+    try {
+        // @ts-ignore
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+            info.processEnv = true;
+            // @ts-ignore
+            if (info.keyLength === 0) info.keyLength = process.env.API_KEY.length;
+        }
+    } catch(e) {}
+
+    info.hasKey = info.keyLength > 0;
+    return info;
 };
 
 export const generatePropertyDescription = async (
