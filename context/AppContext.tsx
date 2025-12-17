@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult, FinancialRecord, LeadInterest, AiMatchOpportunity, AiStaleLeadOpportunity } from '../types.ts';
 import * as DB from '../services/db.ts';
@@ -31,9 +32,9 @@ interface AppContextType {
     addProperty: (property: Property) => Promise<void>;
     updateProperty: (property: Property) => Promise<void>;
     deleteProperty: (id: string) => Promise<void>;
-    markPropertyAsSold: (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string) => Promise<void>;
+    markPropertyAsSold: (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string, rentalStartDate?: string, rentalEndDate?: string) => Promise<void>;
     reactivateProperty: (id: string) => Promise<void>;
-    readjustRental: (id: string, newRent: number, newComm: number, date: string) => Promise<void>;
+    renewRental: (id: string, newRent: number, newComm: number, startDate: string, endDate: string) => Promise<void>;
     getNextPropertyCode: () => number;
     
     addLead: (lead: Lead) => Promise<void>;
@@ -401,7 +402,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const markPropertyAsSold = async (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string) => {
+    const markPropertyAsSold = async (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string, rentalStartDate?: string, rentalEndDate?: string) => {
         // Encontra o imóvel atual para acessar as imagens
         const currentProp = properties.find(p => p.id === id);
         let finalImages = currentProp?.images || [];
@@ -416,10 +417,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await DB.deleteStorageImages(imagesToDelete);
         }
 
-        const update = {
+        const update: Partial<Property> = {
             id,
             status: 'Sold',
-            soldAt: new Date().toISOString(),
+            soldAt: rentalStartDate || new Date().toISOString(), // Se for aluguel, usa a data escolhida
+            rentalEndDate: rentalEndDate, // Data final se for locação
             soldToLeadId: leadId,
             soldByUserId,
             salePrice,
@@ -435,32 +437,67 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Ao vender, se o lead existir, podemos fechar a negociação deste imóvel
             updateLeadInterestStatus(leadId, id, LeadStatus.CLOSED);
         }
+
+        // --- AUTOMAÇÃO DE ALERTA DE VENCIMENTO ---
+        // Se for locação e tiver data de término, cria uma tarefa para avisar 7 dias antes
+        if (rentalEndDate && currentAgency) {
+            try {
+                const endDate = new Date(rentalEndDate);
+                const notificationDate = new Date(endDate);
+                notificationDate.setDate(notificationDate.getDate() - 7);
+                notificationDate.setHours(9, 0, 0, 0); // Define alerta para 09:00
+
+                // Nome do Inquilino
+                const tenantName = leadId ? leads.find(l => l.id === leadId)?.name || 'Inquilino' : 'Inquilino Externo';
+
+                const reminderTask: Task = {
+                    id: uuid(),
+                    title: `Vencimento Contrato: ${currentProp?.title || 'Imóvel'}`,
+                    description: `O contrato de locação do inquilino ${tenantName} vence em 7 dias (${endDate.toLocaleDateString()}). Entrar em contato para renovação ou devolução.`,
+                    dueDate: notificationDate.toISOString(),
+                    completed: false,
+                    assignedTo: soldByUserId || currentUser?.id || '', // Atribui ao corretor da locação ou quem fechou
+                    agencyId: currentAgency.id,
+                    propertyId: id,
+                    leadId: leadId || undefined
+                };
+
+                await addTask(reminderTask);
+                console.log("Tarefa de vencimento criada para:", notificationDate);
+            } catch (e) {
+                console.error("Erro ao criar tarefa de vencimento automática:", e);
+            }
+        }
     };
 
     const reactivateProperty = async (id: string) => {
-        // Ao reativar (Encerrar contrato), salvar histórico se for locação ou venda antiga
+        // Ao reativar:
+        // 1. Se for LOCAÇÃO: Entendemos como "Fim de Contrato". Salvamos o histórico do período locado e liberamos o imóvel.
+        // 2. Se for VENDA: Entendemos como "Cancelamento da Venda". NÃO salvamos histórico, para que o valor saia dos gráficos (estorno).
         const prop = properties.find(p => p.id === id);
         
         if (prop && prop.status === 'Sold' && currentAgency) {
-            try {
-                const historyRecord: FinancialRecord = {
-                    id: uuid(),
-                    agencyId: currentAgency.id,
-                    propertyId: prop.id,
-                    type: prop.type.includes('Locação') ? 'Rental' : 'Sale',
-                    value: prop.salePrice || 0,
-                    commission: prop.commissionValue || 0,
-                    date: prop.soldAt || new Date().toISOString(),
-                    endDate: new Date().toISOString(), // Data do encerramento
-                    leadId: prop.soldToLeadId,
-                    brokerId: prop.soldByUserId
-                };
-                
-                await DB.addItem('financial_records', historyRecord);
-                setFinancialRecords(prev => [...prev, historyRecord]);
-            } catch (e) {
-                console.error("Erro ao salvar histórico financeiro:", e);
-                // Não bloqueia a reativação, mas avisa no console
+            // Apenas salva histórico se for Locação
+            if (prop.type.includes('Locação')) {
+                try {
+                    const historyRecord: FinancialRecord = {
+                        id: uuid(),
+                        agencyId: currentAgency.id,
+                        propertyId: prop.id,
+                        type: 'Rental',
+                        value: prop.salePrice || 0,
+                        commission: prop.commissionValue || 0,
+                        date: prop.soldAt || new Date().toISOString(),
+                        endDate: new Date().toISOString(), // Data do encerramento (hoje)
+                        leadId: prop.soldToLeadId,
+                        brokerId: prop.soldByUserId
+                    };
+                    
+                    await DB.addItem('financial_records', historyRecord);
+                    setFinancialRecords(prev => [...prev, historyRecord]);
+                } catch (e) {
+                    console.error("Erro ao salvar histórico financeiro:", e);
+                }
             }
         }
 
@@ -468,33 +505,76 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id,
             status: 'Active',
             soldAt: null,
+            rentalEndDate: null,
             soldToLeadId: null,
             soldByUserId: null,
             salePrice: null,
-            commissionValue: null
+            commissionValue: null,
+            commissionDistribution: null // Limpa o rateio ao reativar
         };
         // @ts-ignore
         await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, status: 'Active', soldAt: undefined, soldToLeadId: undefined, soldByUserId: undefined, salePrice: undefined, commissionValue: undefined } : p));
+        setProperties(prev => prev.map(p => p.id === id ? { 
+            ...p, 
+            status: 'Active', 
+            soldAt: undefined, 
+            rentalEndDate: undefined, 
+            soldToLeadId: undefined, 
+            soldByUserId: undefined, 
+            salePrice: undefined, 
+            commissionValue: undefined,
+            commissionDistribution: undefined
+        } : p));
     };
 
-    const readjustRental = async (id: string, newRent: number, newComm: number, date: string) => {
+    const renewRental = async (id: string, newRent: number, newComm: number, startDate: string, endDate: string) => {
         const prop = properties.find(p => p.id === id);
-        const oldRent = prop?.salePrice || 0;
-        const oldComm = prop?.commissionValue || 0;
-        
-        const note = `\n[Reajuste em ${new Date(date).toLocaleDateString()}]: Aluguel de R$${oldRent} para R$${newRent}. Comissão de R$${oldComm} para R$${newComm}.`;
-        const currentNotes = prop?.internalNotes || '';
+        if (!prop || !currentAgency) return;
+
+        // 1. Criar registro histórico do período ANTERIOR (Contrato Antigo)
+        const historyRecord: FinancialRecord = {
+            id: uuid(),
+            agencyId: currentAgency.id,
+            propertyId: prop.id,
+            type: 'Rental',
+            value: prop.salePrice || 0, // Valor Antigo
+            commission: prop.commissionValue || 0, // Comissão Antiga
+            date: prop.soldAt || new Date().toISOString(), // Data Início original
+            endDate: prop.rentalEndDate || new Date().toISOString(), // Data fim original
+            leadId: prop.soldToLeadId,
+            brokerId: prop.soldByUserId
+        };
+
+        // Salva no banco (Tabela financial_records)
+        await DB.addItem('financial_records', historyRecord);
+        setFinancialRecords(prev => [...prev, historyRecord]);
+
+        // 2. Atualizar o Imóvel para o NOVO período (Renovação)
+        const note = `\n[Renovação]: Contrato de ${new Date(startDate).toLocaleDateString()} até ${new Date(endDate).toLocaleDateString()}. Valor: R$${newRent}, Comissão: R$${newComm}.`;
+        const currentNotes = prop.internalNotes || '';
 
         const update = { 
             id, 
             salePrice: newRent, 
             commissionValue: newComm,
+            soldAt: new Date(startDate).toISOString(), // NOVO INÍCIO
+            rentalEndDate: new Date(endDate).toISOString(), // NOVO FIM
             internalNotes: currentNotes + note
         };
+        
+        // Atualiza no banco (Tabela properties)
         // @ts-ignore
         await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, salePrice: newRent, commissionValue: newComm, internalNotes: (p.internalNotes || '') + note } : p));
+        
+        // Atualiza estado local
+        setProperties(prev => prev.map(p => p.id === id ? { 
+            ...p, 
+            salePrice: newRent, 
+            commissionValue: newComm, 
+            soldAt: update.soldAt,
+            rentalEndDate: update.rentalEndDate,
+            internalNotes: (p.internalNotes || '') + note 
+        } : p));
     };
 
     const getNextPropertyCode = () => {
@@ -705,7 +785,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             themeColor, setThemeColor, darkMode, setDarkMode,
             login, logout, registerAgency,
             setAgency: setCurrentAgency,
-            addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, readjustRental, getNextPropertyCode,
+            addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, renewRental, getNextPropertyCode,
             addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead,
             addTask, updateTask, toggleTaskCompletion, deleteTask,
             createAgencyUser, updateUser, deleteUser,
