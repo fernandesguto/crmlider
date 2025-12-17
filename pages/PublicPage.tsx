@@ -93,7 +93,7 @@ export const PublicPage: React.FC = () => {
     };
     
     const formatPriceDisplay = (price: number) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(price);
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
     };
 
     const clearFilters = () => {
@@ -186,6 +186,20 @@ export const PublicPage: React.FC = () => {
         const url = new URL(window.location.href);
         url.searchParams.delete('mode');
         window.location.search = ''; 
+    };
+
+    // Componente de Marca d'água - Aumentada a opacidade para ser "menos transparente"
+    const Watermark = ({ sizeClasses = "max-w-[150px] opacity-30" }: { sizeClasses?: string }) => {
+        if (!currentAgency?.logoUrl) return null;
+        return (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 p-4">
+                <img 
+                    src={currentAgency.logoUrl} 
+                    alt="" 
+                    className={`${sizeClasses} h-auto object-contain pointer-events-none`}
+                />
+            </div>
+        );
     };
 
     return (
@@ -359,14 +373,17 @@ export const PublicPage: React.FC = () => {
                                     alt={property.title}
                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                 />
-                                <div className="absolute top-4 left-4">
+                                {/* Marca d'água no card - Aumentada opacidade de 15 para 25 */}
+                                <Watermark sizeClasses="max-w-[100px] opacity-25" />
+                                
+                                <div className="absolute top-4 left-4 z-20">
                                     <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded shadow-md uppercase tracking-wider">{property.type}</span>
                                 </div>
-                                <div className="absolute top-4 right-4 bg-white/90 px-2 py-1 rounded text-xs font-bold font-mono text-slate-800 shadow-sm z-10 whitespace-nowrap">
+                                <div className="absolute top-4 right-4 bg-white/90 px-2 py-1 rounded text-xs font-bold font-mono text-slate-800 shadow-sm z-20 whitespace-nowrap">
                                     Cód: {property.code ? property.code.toString().padStart(5, '0') : '---'}
                                 </div>
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 pt-12">
-                                     <p className="text-white font-bold text-lg">{formatPriceDisplay(property.price)}</p>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 pt-12 z-20">
+                                     <p className="text-white font-extrabold text-2xl tracking-tight drop-shadow-lg">{formatPriceDisplay(property.price)}</p>
                                 </div>
                             </div>
                             <div className="p-6 flex flex-col flex-1">
@@ -417,7 +434,10 @@ export const PublicPage: React.FC = () => {
                     <div>
                         <h4 className="text-slate-900 font-bold mb-4">Contato</h4>
                         <ul className="space-y-3 text-sm">
-                            <li className="flex items-center"><Mail size={16} className="mr-2 text-blue-600"/> {users.find(u => u.role === 'Admin')?.email || 'contato@imobiliaria.com.br'}</li>
+                            <li className="flex items-center">
+                                <Mail size={16} className="mr-2 text-blue-600"/> 
+                                {currentAgency?.email || users.find(u => u.role === 'Admin')?.email || 'contato@imobiliaria.com.br'}
+                            </li>
                             {currentAgency?.phone && (
                                 <li className="flex items-center"><Phone size={16} className="mr-2 text-blue-600"/> {currentAgency.phone}</li>
                             )}
@@ -429,7 +449,7 @@ export const PublicPage: React.FC = () => {
                             {currentAgency?.address ? (
                                 <>
                                     <MapPin size={16} className="mr-2 mt-0.5 text-blue-600 flex-shrink-0" />
-                                    <span>{currentAgency.address}</span>
+                                    <span>{currentAgency.address}{currentAgency.city ? `, ${currentAgency.city}` : ''}</span>
                                 </>
                             ) : (
                                 "Atendemos em toda a região."
@@ -448,7 +468,7 @@ export const PublicPage: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row relative">
                         <button 
                             onClick={handleCloseModal}
-                            className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white text-slate-600 rounded-full p-2 transition"
+                            className="absolute top-4 right-4 z-[70] bg-white/80 hover:bg-white text-slate-600 rounded-full p-2 transition"
                         >
                             <X size={24} />
                         </button>
@@ -461,11 +481,14 @@ export const PublicPage: React.FC = () => {
                                     className="w-full h-full object-contain"
                                     alt={selectedProperty.title}
                                 />
+                                {/* Marca d'água no modal - Aumentada opacidade de 20 para 35 */}
+                                <Watermark sizeClasses="max-w-[200px] md:max-w-[300px] opacity-35" />
+
                                 {selectedProperty.images && selectedProperty.images.length > 1 && (
                                     <>
-                                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition"><ChevronLeft size={24}/></button>
-                                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition"><ChevronRight size={24}/></button>
-                                        <div className="absolute bottom-4 left-0 right-0 text-center">
+                                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronLeft size={24}/></button>
+                                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronRight size={24}/></button>
+                                        <div className="absolute bottom-4 left-0 right-0 text-center z-20">
                                             <span className="bg-black/50 text-white text-xs px-2 py-1 rounded-full">{currentImageIndex + 1} / {selectedProperty.images.length}</span>
                                         </div>
                                     </>
@@ -484,7 +507,7 @@ export const PublicPage: React.FC = () => {
                                             <span className="text-slate-400 text-xs font-mono ml-auto">Cód: {selectedProperty.code}</span>
                                         </div>
                                         <h2 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{selectedProperty.title}</h2>
-                                        <p className="text-3xl font-bold text-blue-600 mb-4">{formatPriceDisplay(selectedProperty.price)}</p>
+                                        <p className="text-4xl font-black text-blue-600 mb-4 tracking-tight">{formatPriceDisplay(selectedProperty.price)}</p>
                                         
                                         <div className="flex items-center text-slate-600 text-sm mb-6">
                                             <MapPin size={16} className="mr-1 text-slate-400" />

@@ -5,18 +5,25 @@ import { useApp } from '../context/AppContext';
 import { Building2, Users, CheckCircle, TrendingUp, AlertTriangle, Calendar, Check, DollarSign, User, Key, BarChart3, Filter, X, Mail, Phone, MapPin, BedDouble, Bath, Square, Trophy, Target, Percent, Layout, Settings2, Plus, Eye, ListChecks, UserPlus, ChevronLeft, ChevronRight, Clock, PieChart as PieChartIcon, Share2 } from 'lucide-react';
 import { PropertyType, LeadStatus, Lead, Property, Task, User as UserType } from '../types';
 
-const StatCard = ({ icon: Icon, label, value, subtext, color }: any) => (
-  <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-3 md:space-x-4 transition hover:shadow-md h-full">
-    <div className={`p-3 md:p-4 rounded-full ${color} bg-opacity-10 flex-shrink-0`}>
-      <Icon className={`${color.replace('bg-', 'text-')} md:w-6 md:h-6`} size={20} />
+const StatCard = ({ icon: Icon, label, value, subtext, color }: any) => {
+  // Ajuste para garantir contraste correto: Fundo sempre tom 100, Ícone mantém a cor original definida no widget
+  // Substitui a lógica de bg-opacity que estava causando ícones invisíveis (fundo sólido)
+  const bgClass = color.replace(/-\d+/, '-100'); 
+  const textClass = color.replace('bg-', 'text-');
+
+  return (
+    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-3 md:space-x-4 transition hover:shadow-md h-full">
+      <div className={`p-3 md:p-4 rounded-full ${bgClass} flex-shrink-0`}>
+        <Icon className={`${textClass} md:w-6 md:h-6`} size={20} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-slate-500 text-xs md:text-sm font-medium truncate">{label}</p>
+        <h3 className="text-lg md:text-2xl font-bold text-slate-800 truncate">{value}</h3>
+        {subtext && <p className="text-[10px] md:text-xs text-slate-400 mt-0.5 md:mt-1 truncate">{subtext}</p>}
+      </div>
     </div>
-    <div className="min-w-0">
-      <p className="text-slate-500 text-xs md:text-sm font-medium truncate">{label}</p>
-      <h3 className="text-lg md:text-2xl font-bold text-slate-800 truncate">{value}</h3>
-      {subtext && <p className="text-[10px] md:text-xs text-slate-400 mt-0.5 md:mt-1 truncate">{subtext}</p>}
-    </div>
-  </div>
-);
+  );
+};
 
 interface SimpleCalendarProps {
     tasks: Task[];

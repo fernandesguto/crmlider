@@ -1,16 +1,15 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Building2, CheckCircle, BarChart3, Globe, Smartphone, ShieldCheck, ArrowRight, Star, Sparkles, Bot, RefreshCw, BrainCircuit } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
     const { setCurrentView } = useApp();
+    const [logoError, setLogoError] = useState(false);
 
     const handleLoginClick = () => {
         // Como o Login é renderizado se !currentUser e view != LANDING/PUBLIC, 
         // mudar para qualquer view que não seja essas forçará o Login a aparecer se não estiver logado.
-        // Mas o ideal é ter um estado de view específico para LOGIN ou null.
-        // Neste sistema simplificado, o App.tsx controla.
-        // Vamos usar um truque: Setar para DASHBOARD. Se não tiver user, o App.tsx mostra Login.
         setCurrentView('DASHBOARD');
     };
 
@@ -20,8 +19,19 @@ export const LandingPage: React.FC = () => {
             <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center space-x-2 text-blue-600">
-                        <Building2 size={32} />
-                        <span className="text-2xl font-bold tracking-tight text-slate-900">CRM Líder</span>
+                        {!logoError ? (
+                            <img 
+                                src="https://assets.zyrosite.com/A1azoVg7xQilMZ9l/logo-d5YUILB2aPsLX5jf.png" 
+                                alt="CRM Líder" 
+                                className="h-10 w-auto object-contain" 
+                                onError={() => setLogoError(true)}
+                            />
+                        ) : (
+                            <div className="flex items-center space-x-2">
+                                <Building2 size={32} />
+                                <span className="text-2xl font-bold tracking-tight text-slate-900">CRM Líder</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center space-x-4">
                         <button 
@@ -72,44 +82,26 @@ export const LandingPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="relative">
-                        {/* Abstract UI Mockup */}
-                        <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 transform rotate-1 hover:rotate-0 transition duration-500">
-                            <div className="bg-slate-50 rounded-xl overflow-hidden aspect-[4/3] relative flex flex-col">
-                                {/* Header Mockup */}
-                                <div className="h-12 bg-white border-b border-slate-100 flex items-center px-4 space-x-2 flex-shrink-0">
-                                    <div className="w-3 h-3 rounded-full bg-red-400"/>
-                                    <div className="w-3 h-3 rounded-full bg-yellow-400"/>
-                                    <div className="w-3 h-3 rounded-full bg-green-400"/>
-                                </div>
-                                {/* Content Mockup with AI Chat */}
-                                <div className="p-6 flex-1 flex flex-col relative overflow-hidden">
-                                    <div className="absolute top-10 right-10 w-64 bg-white rounded-lg shadow-lg border border-purple-100 p-4 z-10 animate-in slide-in-from-bottom duration-1000">
-                                        <div className="flex items-center mb-2">
-                                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mr-2">
-                                                <Bot size={16}/>
-                                            </div>
-                                            <p className="text-xs font-bold text-purple-600">Consultor IA</p>
-                                        </div>
-                                        <p className="text-xs text-slate-600">Encontrei 3 imóveis perfeitos para o cliente Roberto. A probabilidade de fechamento é de 92%. Deseja enviar a oferta?</p>
+                        {/* Imagem do App */}
+                        <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 transform rotate-1 hover:rotate-0 transition duration-500 overflow-hidden">
+                            <img 
+                                src="https://assets.zyrosite.com/A1azoVg7xQilMZ9l/captura-de-tela-2025-12-17-171651-LjfexspyGldxjnMj.png" 
+                                alt="Dashboard CRM Líder" 
+                                className="rounded-xl w-full h-auto object-cover aspect-[4/3] shadow-inner"
+                            />
+                            
+                            {/* Overlay de IA flutuante */}
+                            <div className="absolute top-10 right-10 w-64 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-purple-100 p-4 z-10 animate-in slide-in-from-bottom duration-1000">
+                                <div className="flex items-center mb-2">
+                                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mr-2">
+                                        <Bot size={16}/>
                                     </div>
-                                    
-                                    <div className="grid grid-cols-3 gap-4 opacity-50">
-                                        <div className="col-span-2 space-y-4">
-                                            <div className="h-32 bg-blue-100 rounded-lg"/>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="h-20 bg-slate-200 rounded-lg"/>
-                                                <div className="h-20 bg-slate-200 rounded-lg"/>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="h-10 bg-green-100 rounded-lg"/>
-                                            <div className="h-10 bg-purple-100 rounded-lg"/>
-                                            <div className="h-32 bg-slate-100 rounded-lg"/>
-                                        </div>
-                                    </div>
+                                    <p className="text-xs font-bold text-purple-600">Consultor IA</p>
                                 </div>
+                                <p className="text-xs text-slate-600 font-medium">Encontrei 3 imóveis perfeitos para o cliente Roberto. A probabilidade de fechamento é de 92%. Deseja enviar a oferta?</p>
                             </div>
                         </div>
+                        
                         {/* Floating Badge */}
                         <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center space-x-3 animate-bounce">
                             <div className="bg-purple-100 p-2 rounded-full text-purple-600"><BrainCircuit fill="currentColor" size={20}/></div>
@@ -255,8 +247,14 @@ export const LandingPage: React.FC = () => {
             <footer className="bg-white py-12 border-t border-slate-200">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
                     <div className="flex items-center space-x-2 text-slate-800 mb-4 md:mb-0">
-                        <Building2 size={24} />
-                        <span className="text-xl font-bold">CRM Líder</span>
+                        {!logoError ? (
+                            <img src="https://assets.zyrosite.com/A1azoVg7xQilMZ9l/logo-d5YUILB2aPsLX5jf.png" className="h-8 w-auto object-contain grayscale opacity-50" alt="Logo" />
+                        ) : (
+                            <div className="flex items-center space-x-2">
+                                <Building2 size={24} />
+                                <span className="text-xl font-bold">CRM Líder</span>
+                            </div>
+                        )}
                     </div>
                     <p className="text-slate-500 text-sm">
                         &copy; {new Date().getFullYear()} CRM Líder. Todos os direitos reservados.

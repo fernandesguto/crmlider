@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, Upload, Loader2, Palette, Moon, Sun, Save, MapPin, Phone, AlertCircle } from 'lucide-react';
+import { Building2, Upload, Loader2, Palette, Moon, Sun, Save, MapPin, Phone, AlertCircle, Mail } from 'lucide-react';
 import { uploadImage } from '../services/db';
 
 export const Settings: React.FC = () => {
@@ -10,6 +11,8 @@ export const Settings: React.FC = () => {
   // Local state for agency details
   const [agencyName, setAgencyName] = useState('');
   const [agencyAddress, setAgencyAddress] = useState('');
+  const [agencyCity, setAgencyCity] = useState('');
+  const [agencyEmail, setAgencyEmail] = useState('');
   const [agencyPhone, setAgencyPhone] = useState('');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
 
@@ -17,6 +20,8 @@ export const Settings: React.FC = () => {
       if (currentAgency) {
           setAgencyName(currentAgency.name || '');
           setAgencyAddress(currentAgency.address || '');
+          setAgencyCity(currentAgency.city || '');
+          setAgencyEmail(currentAgency.email || '');
           setAgencyPhone(currentAgency.phone || '');
       }
   }, [currentAgency]);
@@ -75,6 +80,8 @@ export const Settings: React.FC = () => {
               ...currentAgency,
               name: agencyName,
               address: agencyAddress,
+              city: agencyCity,
+              email: agencyEmail,
               phone: agencyPhone
           });
           alert('Informações atualizadas com sucesso!');
@@ -134,15 +141,28 @@ export const Settings: React.FC = () => {
 
                     {/* Detalhes Form */}
                     <form onSubmit={handleSaveDetails} className="flex-1 space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Nome Fantasia</label>
-                            <input 
-                                required
-                                value={agencyName}
-                                onChange={e => setAgencyName(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Fantasia</label>
+                                <input 
+                                    required
+                                    value={agencyName}
+                                    onChange={e => setAgencyName(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center"><Mail size={14} className="mr-1"/> E-mail Público (Site)</label>
+                                <input 
+                                    type="email"
+                                    value={agencyEmail}
+                                    onChange={e => setAgencyEmail(e.target.value)}
+                                    placeholder="contato@imobiliaria.com.br"
+                                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
                         </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center"><Phone size={14} className="mr-1"/> Telefone / WhatsApp</label>
@@ -161,15 +181,26 @@ export const Settings: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center"><MapPin size={14} className="mr-1"/> Endereço</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center"><MapPin size={14} className="mr-1"/> Cidade</label>
                                 <input 
-                                    value={agencyAddress}
-                                    onChange={e => setAgencyAddress(e.target.value)}
-                                    placeholder="Rua, Número - Cidade/UF"
+                                    value={agencyCity}
+                                    onChange={e => setAgencyCity(e.target.value)}
+                                    placeholder="Cidade - UF"
                                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center"><MapPin size={14} className="mr-1"/> Endereço Completo</label>
+                            <input 
+                                value={agencyAddress}
+                                onChange={e => setAgencyAddress(e.target.value)}
+                                placeholder="Rua, Número, Bairro"
+                                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
                         <div className="pt-2 flex justify-end">
                             <button 
                                 type="submit" 

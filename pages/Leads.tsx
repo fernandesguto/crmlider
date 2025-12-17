@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2 } from 'lucide-react';
+import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2, ChevronDown } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
@@ -16,6 +16,9 @@ export const Leads: React.FC = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Estado para o dropdown customizado de imóveis
+  const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
   
   const [viewProperty, setViewProperty] = useState<Property | null>(null);
 
@@ -104,6 +107,7 @@ export const Leads: React.FC = () => {
       });
       setIsEditing(false);
       setShowModal(true);
+      setIsPropertyDropdownOpen(false);
   };
 
   const handleOpenEdit = (lead: Lead) => {
@@ -113,6 +117,7 @@ export const Leads: React.FC = () => {
       });
       setIsEditing(true);
       setShowModal(true);
+      setIsPropertyDropdownOpen(false);
   };
 
   const handleDeleteClick = (lead: Lead) => {
@@ -327,8 +332,10 @@ export const Leads: React.FC = () => {
                                             onClick={() => setViewProperty(p)}
                                             className="flex items-stretch text-xs bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-sm cursor-pointer transition w-full sm:w-auto sm:max-w-[320px]"
                                         >
-                                            <div className="px-3 py-2 flex items-center flex-1 min-w-0 border-r border-slate-100">
-                                                <Home size={12} className="mr-2 text-slate-400 flex-shrink-0"/>
+                                            <div className="px-2 py-1.5 flex items-center flex-1 min-w-0 border-r border-slate-100 gap-2">
+                                                <div className="w-8 h-8 bg-slate-200 rounded overflow-hidden flex-shrink-0 border border-slate-100">
+                                                    <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
+                                                </div>
                                                 <span className="truncate font-medium text-slate-700" title={p.title}>{p.title}</span>
                                             </div>
                                             <div className={`px-3 py-2 font-bold flex items-center whitespace-nowrap ${getStatusColor(status)}`}>
@@ -454,21 +461,51 @@ export const Leads: React.FC = () => {
               <div className="border-t border-slate-100 pt-4">
                  <label className="block text-sm font-bold text-slate-800 mb-2">Imóveis e Negociações</label>
                  
-                 <div className="flex items-center space-x-2 mb-3">
-                    <select 
-                       className="flex-1 bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                       onChange={(e) => {
-                          addPropertyInterest(e.target.value);
-                          e.target.value = ""; 
-                       }}
-                    >
-                        <option value="">+ Adicionar Imóvel à lista...</option>
-                        {properties
-                            .filter(p => !formData.interestedInPropertyIds?.includes(p.id))
-                            .map(p => (
-                            <option key={p.id} value={p.id}>{p.title} - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(p.price)}</option>
-                        ))}
-                    </select>
+                 <div className="flex items-center space-x-2 mb-3 relative">
+                    {/* Custom Dropdown for Property Selection with Images */}
+                    <div className="flex-1 relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)}
+                            className="w-full bg-white text-slate-700 border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center justify-between"
+                        >
+                            <span className="text-slate-500">+ Adicionar Imóvel à lista...</span>
+                            <ChevronDown size={16} className="text-slate-400"/>
+                        </button>
+                        
+                        {isPropertyDropdownOpen && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                                {properties
+                                    .filter(p => !formData.interestedInPropertyIds?.includes(p.id))
+                                    .map(p => (
+                                    <div 
+                                        key={p.id} 
+                                        onClick={() => {
+                                            addPropertyInterest(p.id);
+                                            setIsPropertyDropdownOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition group"
+                                    >
+                                        <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+                                            <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-sm font-bold text-slate-700 truncate group-hover:text-blue-600 transition">{p.title}</span>
+                                            <span className="text-xs text-slate-500 font-mono">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(p.price)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {properties.filter(p => !formData.interestedInPropertyIds?.includes(p.id)).length === 0 && (
+                                    <div className="p-4 text-center text-xs text-slate-400">Nenhum imóvel disponível para adicionar.</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {isPropertyDropdownOpen && (
+                        <div className="fixed inset-0 z-40" onClick={() => setIsPropertyDropdownOpen(false)}></div>
+                    )}
                  </div>
 
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
@@ -478,8 +515,10 @@ export const Leads: React.FC = () => {
                              
                              return (
                                  <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center justify-between shadow-sm">
-                                     <div className="flex items-center space-x-2 flex-1 overflow-hidden">
-                                         <Home size={16} className="text-slate-400 flex-shrink-0" />
+                                     <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                                         <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+                                            <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
+                                         </div>
                                          <span className="font-medium text-slate-700 truncate text-sm">{p.title}</span>
                                      </div>
                                      <div className="flex items-center space-x-2 ml-4">

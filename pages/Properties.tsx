@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Property, PropertyType, LeadStatus, PropertyCategory, PropertySubtype } from '../types';
-import { Plus, Trash2, MapPin, BedDouble, Bath, Square, Upload, Image as ImageIcon, ArrowLeft, User, Phone, Mail, MessageCircle, Edit, X, ChevronLeft, ChevronRight, Tag, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, Printer, ArrowUpDown, Calendar } from 'lucide-react';
+import { Plus, Trash2, MapPin, BedDouble, Bath, Square, Upload, Image as ImageIcon, ArrowLeft, ArrowRight, User, Phone, Mail, MessageCircle, Edit, X, ChevronLeft, ChevronRight, Tag, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, Printer, ArrowUpDown, Calendar } from 'lucide-react';
 import { uploadImage } from '../services/db';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { generatePropertyDescription } from '../services/geminiService';
@@ -1511,7 +1511,7 @@ export const Properties: React.FC = () => {
                                     <span className="flex items-center"><Square size={14} className="mr-1 text-blue-400"/> {property.area}m²</span>
                                 </div>
                                 <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                                    <p className="text-lg md:text-xl font-bold text-blue-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(property.price)}</p>
+                                    <p className="text-lg md:text-xl font-bold text-blue-600">{formatCurrency(property.price)}</p>
                                 </div>
                             </div>
                         </div>

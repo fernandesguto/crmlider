@@ -75,18 +75,21 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="bg-slate-900 p-8 text-center relative">
+        <div className="bg-slate-900 p-10 text-center relative">
             <button 
                 onClick={() => setCurrentView('LANDING')}
                 className="absolute top-4 left-4 text-slate-400 hover:text-white transition flex items-center text-xs"
             >
                 <ArrowLeft size={14} className="mr-1" /> Home
             </button>
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4 text-white shadow-lg">
-                <Building2 size={32} />
+            
+            <div className="flex flex-col items-center justify-center">
+                <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+                    CRM <span className="text-blue-500">Líder</span>
+                </h1>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">ImobERP</h1>
-            <p className="text-blue-200 mt-2 text-sm">Plataforma Multi-Imobiliárias</p>
+            
+            <p className="text-blue-200 mt-2 text-sm font-medium">Plataforma Multi-Imobiliárias</p>
         </div>
 
         {/* Tabs */}
