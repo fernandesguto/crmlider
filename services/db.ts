@@ -1,5 +1,20 @@
+
 import { supabase } from './supabaseClient.ts';
 import { Property, Lead, Task, User, Agency } from '../types.ts';
+
+const getSqlSuggestion = (table: string, errorMsg: string) => {
+    const msg = errorMsg.toLowerCase();
+    if (msg.includes('interests')) {
+            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb;`;
+    } else if (msg.includes('commissiondistribution') || msg.includes('commission_distribution')) {
+            return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "commissionDistribution" JSONB DEFAULT '[]'::jsonb;`;
+    } else if (msg.includes('rentalenddate') || msg.includes('rental_end_date')) {
+            return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalEndDate" timestamp with time zone;`;
+    } else if (msg.includes('source')) {
+            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS source text;`;
+    }
+    return '';
+}
 
 export const uploadImage = async (file: File): Promise<string | null> => {
   try {
@@ -65,7 +80,7 @@ export const getAll = async <T>(table: string, filter?: { column: string, value:
         return [];
     }
 
-    console.error(`Erro ao buscar dados de ${table}.`, error);
+    console.error(`Erro ao buscar dados de ${table}:`, error.message || error);
     return [];
   }
   return data as T[];
@@ -80,9 +95,18 @@ export const addItem = async <T>(table: string, item: any): Promise<T> => {
 
   if (error) {
     console.error(`Erro ao inserir em ${table}:`, error);
-    if (error.code === '42703') {
-        alert(`Erro de Schema no Banco de Dados (${table}):\n\nUma ou mais colunas necessárias não existem. Verifique se o banco está atualizado.\n\nDetalhe: ${error.message}`);
-    } else if (table === 'financial_records' && (error.code === '42P01' || error.message.includes('Could not find the table'))) {
+    
+    let errorMsg = typeof error.message === 'string' ? error.message : JSON.stringify(error);
+    const errorCode = error.code || '';
+
+    if (errorCode === '42703' || errorMsg.includes('Could not find the') || errorMsg.includes('does not exist')) {
+        const sqlSuggestion = getSqlSuggestion(table, errorMsg);
+        if (sqlSuggestion) {
+             alert(`ATENÇÃO: ATUALIZAÇÃO DE BANCO NECESSÁRIA\n\nErro ao salvar em '${table}': Coluna faltando.\n\nSOLUÇÃO:\nRode este SQL no Supabase:\n\n${sqlSuggestion}`);
+        } else {
+             alert(`Erro de Schema no Banco de Dados (${table}):\n\nUma ou mais colunas necessárias não existem. Verifique se o banco está atualizado.\n\nDetalhe: ${errorMsg}`);
+        }
+    } else if (table === 'financial_records' && (errorCode === '42P01' || errorMsg.includes('Could not find the table'))) {
        console.warn(`[Supabase] Tabela '${table}' não encontrada. Registro histórico não pôde ser salvo.`);
        throw new Error("Tabela de histórico não configurada no banco de dados.");
     }
@@ -103,19 +127,28 @@ export const updateItem = async <T>(table: string, item: any): Promise<T> => {
   if (error) {
     console.error(`Erro ao atualizar em ${table}:`, error);
     
-    // Detecção de coluna faltando (Erro comum ao adicionar features novas sem migrar DB)
-    if (error.code === '42703') {
-        let columnName = 'desconhecida';
-        if (error.message.includes('interests')) columnName = 'interests';
-        
-        const sqlSuggestion = columnName === 'interests' 
-            ? `ALTER TABLE leads ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb;`
-            : `Verifique as colunas da tabela ${table}.`;
-
-        alert(`ATENÇÃO: ATUALIZAÇÃO NECESSÁRIA NO BANCO DE DADOS\n\nO sistema tentou salvar dados em uma coluna que ainda não existe na tabela '${table}'.\n\nErro: ${error.message}\n\nSOLUÇÃO:\nExecute o seguinte SQL no seu Supabase:\n\n${sqlSuggestion}`);
+    let errorMsg = 'Erro desconhecido';
+    if (typeof error.message === 'string') {
+        errorMsg = error.message;
+    } else {
+        try {
+            errorMsg = JSON.stringify(error);
+        } catch {
+            errorMsg = 'Erro crítico de conexão com o banco.';
+        }
     }
     
-    throw new Error(error.message || 'Erro desconhecido ao atualizar.');
+    const errorCode = error.code || '';
+
+    // Detecção de coluna faltando (Erro comum ao adicionar features novas sem migrar DB)
+    if (errorCode === '42703' || errorMsg.includes('Could not find the') || errorMsg.includes('does not exist')) {
+        const sqlSuggestion = getSqlSuggestion(table, errorMsg);
+        const suggestionText = sqlSuggestion ? `\n\nSOLUÇÃO:\nExecute o seguinte SQL no seu Supabase (SQL Editor):\n\n${sqlSuggestion}` : `\n\nVerifique se a coluna mencionada no erro existe na tabela ${table}.`;
+
+        alert(`ATENÇÃO: ATUALIZAÇÃO NECESSÁRIA NO BANCO DE DADOS\n\nO sistema tentou salvar dados em uma coluna que ainda não existe na tabela '${table}'.\n\nErro: ${errorMsg}${suggestionText}`);
+    }
+    
+    throw new Error(errorMsg);
   }
   return data as T;
 };
@@ -215,9 +248,6 @@ export const seedDatabase = async () => {
             type: 'Buyer',
             status: 'Novo',
             interestedInPropertyIds: ['p1'],
-            // Se o seed rodar em uma tabela nova, pode falhar se 'interests' não existir, mas seed usually runs on empty DB
-            // Se a coluna não existir, o insert vai ignorar campos extras se for flexível ou falhar.
-            // Para segurança do seed, não incluiremos interests aqui para garantir compatibilidade inicial.
             agencyId: agency1Id
          }
     ]);
