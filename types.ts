@@ -24,6 +24,8 @@ export interface Agency {
   createdAt?: string;
   logoUrl?: string;
   address?: string; 
+  city?: string;
+  email?: string;
   phone?: string;
   isApproved?: boolean; // Controle de liberação
   trialExpiresAt?: string; // Data de expiração do teste grátis
@@ -60,6 +62,7 @@ export interface Property {
 
   // Status de Venda e Financeiro
   status?: 'Active' | 'Sold';
+  createdAt?: string; // Added to support AI analysis logic
   soldAt?: string; // Data da Venda ou INÍCIO do contrato atual
   rentalEndDate?: string; // Data FIM do contrato atual (apenas locação)
   soldToLeadId?: string; // ID do Lead se vendido internamente
@@ -158,12 +161,14 @@ export interface AiMatchOpportunity {
     status?: 'pending' | 'accepted' | 'dismissed';
 }
 
-export interface AiStaleLeadOpportunity {
-    leadId: string;
+export interface AiRecoveryOpportunity {
+    type: 'lead' | 'property';
+    id: string;
+    name: string; // Nome do Lead ou Título do Imóvel
     daysInactive: number;
-    currentStatus: string;
+    info: string; // Status do lead ou Bairro do imóvel
     analysis: string;
-    reactivationMessage: string;
+    suggestion: string; // Mensagem de WhatsApp ou Dica de estratégia
 }
 
 export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING' | 'COMMISSIONS';

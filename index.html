@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Líder - Sistema Imobiliário</title>
+    <link rel="icon" type="image/png" href="https://assets.zyrosite.com/A1azoVg7xQilMZ9l/favcon-81sP3OKVa6Aptdjo.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -26,6 +27,8 @@
         font-size: 1rem;
       }
     </style>
+    <!-- Suporte para conversão de fotos de iPhone (HEIC) -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -42,9 +45,11 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
