@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Property, CommissionSplit, User } from '../types';
-import { PieChart, DollarSign, Search, CheckCircle, AlertCircle, Plus, Trash2, X, Save, User as UserIcon, Building2, Loader2, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, LabelList } from 'recharts';
+import { Property, CommissionSplit } from '../types';
+import { PieChart, DollarSign, Search, AlertCircle, Plus, Trash2, X, Save, User as UserIcon, Building2, Loader2, AlertTriangle } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 export const Commissions: React.FC = () => {
     const { properties, users, updateProperty, currentAgency } = useApp();
@@ -59,12 +59,12 @@ export const Commissions: React.FC = () => {
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     const currencyFormatter = (val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : `${val}`;
 
-    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg">
                     <p className="text-sm font-bold text-slate-800 mb-1 capitalize">{label}</p>
-                    {payload.map((entry, index) => (
+                    {payload.map((entry: any, index: number) => (
                         <p key={index} className="text-xs font-medium" style={{ color: entry.color }}>
                             {entry.name}: {formatCurrency(entry.value as number)}
                         </p>
