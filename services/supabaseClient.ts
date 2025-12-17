@@ -1,8 +1,22 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Tenta pegar das variáveis de ambiente do Vite/Vercel primeiro
-const ENV_URL = (import.meta as any).env?.VITE_SUPABASE_URL;
-const ENV_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+// Função segura para ler variáveis de ambiente em diferentes contextos (Vite, Vercel, GH Pages)
+const getEnvVar = (key: string): string | undefined => {
+    try {
+        // Tenta acessar via import.meta.env (Vite)
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+            // @ts-ignore
+            return import.meta.env[key];
+        }
+    } catch (e) {
+        // Ignora erro
+    }
+    return undefined;
+};
+
+const ENV_URL = getEnvVar('VITE_SUPABASE_URL');
+const ENV_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 // Fallback hardcoded para demonstração (se as env vars não existirem)
 const HARDCODED_URL: string = "https://awrfaunmdqatvdkembjm.supabase.co"; 
@@ -11,7 +25,7 @@ const HARDCODED_KEY: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 let supabaseInstance: SupabaseClient | null = null;
 
 const getUrl = () => {
-    // 1. Prioridade: Variável de Ambiente (Deploy Vercel)
+    // 1. Prioridade: Variável de Ambiente (Deploy Vercel/Vite)
     if (ENV_URL) return ENV_URL;
     // 2. Hardcoded (Demo)
     if (HARDCODED_URL && HARDCODED_URL.startsWith('http')) return HARDCODED_URL;
