@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext.tsx';
 import { Sidebar } from './components/Sidebar.tsx';
@@ -9,6 +10,7 @@ import { Users } from './pages/Users.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { Rentals } from './pages/Rentals.tsx';
 import { Sales } from './pages/Sales.tsx';
+import { Commissions } from './pages/Commissions.tsx';
 import { PublicPage } from './pages/PublicPage.tsx';
 import { SuperAdmin } from './pages/SuperAdmin.tsx';
 import { LandingPage } from './pages/LandingPage.tsx';
@@ -134,6 +136,7 @@ const MainLayout: React.FC = () => {
         {currentView === 'PROPERTIES' && <Properties />}
         {currentView === 'RENTALS' && <Rentals />}
         {currentView === 'SALES' && <Sales />}
+        {currentView === 'COMMISSIONS' && <Commissions />}
         {currentView === 'LEADS' && <Leads />}
         {currentView === 'TASKS' && <Tasks />}
         {currentView === 'USERS' && <Users />}

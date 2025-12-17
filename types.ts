@@ -29,6 +29,14 @@ export interface Agency {
   trialExpiresAt?: string; // Data de expiração do teste grátis
 }
 
+export interface CommissionSplit {
+    beneficiaryType: 'Broker' | 'Agency';
+    beneficiaryId: string;
+    beneficiaryName: string; // Nome do corretor ou da imobiliária
+    percentage: number; // Ex: 50 para 50%
+    value: number; // Valor em R$
+}
+
 export interface Property {
   id: string;
   code?: number; // Código sequencial (ex: 1, 2, 3...)
@@ -52,11 +60,13 @@ export interface Property {
 
   // Status de Venda e Financeiro
   status?: 'Active' | 'Sold';
-  soldAt?: string;
+  soldAt?: string; // Data da Venda ou INÍCIO do contrato atual
+  rentalEndDate?: string; // Data FIM do contrato atual (apenas locação)
   soldToLeadId?: string; // ID do Lead se vendido internamente
   soldByUserId?: string; // ID do Corretor que vendeu
   salePrice?: number; // Valor final que foi fechado o negócio (Aluguel mensal ou Venda Total)
   commissionValue?: number; // Valor da comissão recebida
+  commissionDistribution?: CommissionSplit[]; // Rateio da comissão
 
   bedrooms: number;
   bathrooms: number;
@@ -92,6 +102,7 @@ export interface Lead {
   email: string;
   phone: string;
   type: 'Buyer' | 'Seller';
+  source?: string; // Origem do Lead (Indicação, Site, Instagram, etc)
   status: LeadStatus; // Status Global (Calculado ou Manual)
   interestedInPropertyIds: string[]; // Mantido para busca rápida, mas o detalhe está em interests
   interests?: LeadInterest[]; // Nova estrutura detalhada
@@ -155,4 +166,4 @@ export interface AiStaleLeadOpportunity {
     reactivationMessage: string;
 }
 
-export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING';
+export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING' | 'COMMISSIONS';
