@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign, Sparkles, PieChart } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ViewState, LeadStatus } from '../types';
 
@@ -75,7 +76,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Building2 className="text-white" size={20} />
                         </div>
-                        <h1 className="text-xl font-bold text-slate-800 tracking-tight">ImobERP</h1>
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-none">ImobERP</h1>
+                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">v2.0 (Nova)</span>
+                        </div>
                     </div>
                 )}
                 
@@ -107,6 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <NavItem view="PROPERTIES" icon={Building2} label="Imóveis" />
                 <NavItem view="SALES" icon={DollarSign} label="Vendas" />
                 <NavItem view="RENTALS" icon={Key} label="Locações" />
+                <NavItem view="COMMISSIONS" icon={PieChart} label="Comissões" />
                 <NavItem view="LEADS" icon={Users} label="Leads" badge={newLeadsCount} />
                 <NavItem view="TASKS" icon={CheckSquare} label="Tarefas" />
                 <NavItem view="USERS" icon={UserCircle} label="Equipe" />
