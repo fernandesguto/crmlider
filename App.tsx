@@ -1,24 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppProvider, useApp } from './context/AppContext.tsx';
-import { Sidebar } from './components/Sidebar.tsx';
-import { Dashboard } from './pages/Dashboard.tsx';
-import { Properties } from './pages/Properties.tsx';
-import { Leads } from './pages/Leads.tsx';
-import { Tasks } from './pages/Tasks.tsx';
-import { Users } from './pages/Users.tsx';
-import { Settings } from './pages/Settings.tsx';
-import { Rentals } from './pages/Rentals.tsx';
-import { Sales } from './pages/Sales.tsx';
-import { Commissions } from './pages/Commissions.tsx';
-import { PublicPage } from './pages/PublicPage.tsx';
-import { SuperAdmin } from './pages/SuperAdmin.tsx';
-import { LandingPage } from './pages/LandingPage.tsx';
-import { Login } from './pages/Login.tsx';
-import { SetupModal } from './components/SetupModal.tsx';
-import { checkConfiguration } from './services/supabaseClient.ts';
-import { NotificationModal } from './components/NotificationModal.tsx';
-import { AiMatching } from './pages/AiMatching.tsx';
+import { AppProvider, useApp } from './context/AppContext';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './pages/Dashboard';
+import { Properties } from './pages/Properties';
+import { Leads } from './pages/Leads';
+import { Tasks } from './pages/Tasks';
+import { Users } from './pages/Users';
+import { Settings } from './pages/Settings';
+import { Rentals } from './pages/Rentals';
+import { Sales } from './pages/Sales';
+import { Commissions } from './pages/Commissions';
+import { PublicPage } from './pages/PublicPage';
+import { SuperAdmin } from './pages/SuperAdmin';
+import { LandingPage } from './pages/LandingPage';
+import { Login } from './pages/Login';
+import { SetupModal } from './components/SetupModal';
+import { checkConfiguration } from './services/supabaseClient';
+import { NotificationModal } from './components/NotificationModal';
+import { AiMatching } from './pages/AiMatching';
 import { Menu, Building2 } from 'lucide-react';
 
 const ThemeController = () => {
