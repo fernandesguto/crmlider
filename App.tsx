@@ -10,7 +10,7 @@ import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import { Rentals } from './pages/Rentals';
 import { Sales } from './pages/Sales';
-import { Commissions } from './pages/Commissions';
+import { CommissionManager } from './pages/CommissionManager';
 import { PublicPage } from './pages/PublicPage';
 import { SuperAdmin } from './pages/SuperAdmin';
 import { LandingPage } from './pages/LandingPage';
@@ -136,7 +136,7 @@ const MainLayout: React.FC = () => {
         {currentView === 'PROPERTIES' && <Properties />}
         {currentView === 'RENTALS' && <Rentals />}
         {currentView === 'SALES' && <Sales />}
-        {currentView === 'COMMISSIONS' && <Commissions />}
+        {currentView === 'COMMISSIONS' && <CommissionManager />}
         {currentView === 'LEADS' && <Leads />}
         {currentView === 'TASKS' && <Tasks />}
         {currentView === 'USERS' && <Users />}
