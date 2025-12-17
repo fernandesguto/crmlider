@@ -72,6 +72,7 @@ export const WhatsApp: React.FC = () => {
           phone: newLeadNumber,
           type: 'Buyer',
           status: LeadStatus.NEW,
+          source: 'WhatsApp', // Auto
           interestedInPropertyIds: [],
           notes: 'Cadastrado via WhatsApp CRM',
           createdAt: new Date().toISOString(),

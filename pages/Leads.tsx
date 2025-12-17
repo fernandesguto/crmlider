@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle } from 'lucide-react';
+import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
@@ -10,7 +11,8 @@ export const Leads: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [propertyFilter, setPropertyFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>(''); // Filter for Buyer/Seller
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [sourceFilter, setSourceFilter] = useState<string>('');
 
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -25,11 +27,24 @@ export const Leads: React.FC = () => {
     email: '',
     phone: '',
     type: 'Buyer',
+    source: '',
     status: LeadStatus.NEW,
     interestedInPropertyIds: [],
     interests: [],
     notes: ''
   });
+
+  const leadSources = [
+      'Indicação',
+      'Site',
+      'Instagram',
+      'Facebook',
+      'Google Ads',
+      'Facebook Ads',
+      'WhatsApp',
+      'Passante/Loja',
+      'Outros'
+  ];
 
   // Função auxiliar para verificar status de interesse específico
   const getInterestStatus = (lead: Lead, propId: string) => {
@@ -42,27 +57,23 @@ export const Leads: React.FC = () => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             lead.email.toLowerCase().includes(searchTerm.toLowerCase());
         
-        // Match status: Se o filtro estiver vazio, passa.
-        // Se tiver filtro, verifica se o lead tem ALGUM interesse com aquele status OU se o status global bate.
         const matchesStatus = !statusFilter || 
             (lead.interests?.some(i => i.status === statusFilter)) ||
             (lead.status === statusFilter);
         
         const matchesProperty = !propertyFilter || lead.interestedInPropertyIds.includes(propertyFilter);
-
         const matchesType = !typeFilter || lead.type === typeFilter;
+        const matchesSource = !sourceFilter || lead.source === sourceFilter;
 
-        return matchesSearch && matchesStatus && matchesProperty && matchesType;
+        return matchesSearch && matchesStatus && matchesProperty && matchesType && matchesSource;
     })
     .sort((a, b) => {
-        // Regra 1: Status "Novo" sempre em primeiro
         const aIsNew = a.status === LeadStatus.NEW;
         const bIsNew = b.status === LeadStatus.NEW;
 
         if (aIsNew && !bIsNew) return -1;
         if (!aIsNew && bIsNew) return 1;
 
-        // Regra 2: Ordenação por data de criação (Mais recentes primeiro)
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
@@ -71,15 +82,16 @@ export const Leads: React.FC = () => {
       setStatusFilter('');
       setPropertyFilter('');
       setTypeFilter('');
+      setSourceFilter('');
   };
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {
-      case LeadStatus.NEW: return 'bg-green-100 text-green-700 border-green-200'; // Novo agora é Verde
-      case LeadStatus.CONTACTED: return 'bg-blue-100 text-blue-700 border-blue-200'; // Contatado agora é Azul
+      case LeadStatus.NEW: return 'bg-green-100 text-green-700 border-green-200';
+      case LeadStatus.CONTACTED: return 'bg-blue-100 text-blue-700 border-blue-200';
       case LeadStatus.VISITING: return 'bg-purple-100 text-purple-700 border-purple-200';
       case LeadStatus.NEGOTIATION: return 'bg-orange-100 text-orange-700 border-orange-200';
-      case LeadStatus.CLOSED: return 'bg-emerald-100 text-emerald-800 border-emerald-200'; // Fechado em tom diferente
+      case LeadStatus.CLOSED: return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case LeadStatus.LOST: return 'bg-slate-100 text-slate-700 border-slate-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
@@ -87,7 +99,7 @@ export const Leads: React.FC = () => {
 
   const handleOpenCreate = () => {
       setFormData({ 
-          name: '', email: '', phone: '', type: 'Buyer', 
+          name: '', email: '', phone: '', type: 'Buyer', source: '',
           status: LeadStatus.NEW, interestedInPropertyIds: [], interests: [], notes: '' 
       });
       setIsEditing(false);
@@ -97,7 +109,6 @@ export const Leads: React.FC = () => {
   const handleOpenEdit = (lead: Lead) => {
       setFormData({ 
           ...lead,
-          // Garante que array legacy e novo estejam sync no form
           interests: lead.interests || [] 
       });
       setIsEditing(true);
@@ -130,6 +141,7 @@ export const Leads: React.FC = () => {
             email: formData.email || '',
             phone: formData.phone || '',
             type: formData.type as 'Buyer' | 'Seller' || 'Buyer',
+            source: formData.source || 'Indicação',
             status: formData.status as LeadStatus || LeadStatus.NEW,
             interestedInPropertyIds: formData.interestedInPropertyIds || [],
             interests: formData.interests || [],
@@ -147,7 +159,6 @@ export const Leads: React.FC = () => {
       const alreadyHas = formData.interestedInPropertyIds?.includes(propertyId);
       if (!alreadyHas) {
           const newInterests = [...(formData.interests || [])];
-          // Adiciona novo interesse com status "Novo" padrão
           newInterests.push({ propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() });
 
           setFormData(prev => ({
@@ -167,20 +178,16 @@ export const Leads: React.FC = () => {
   };
 
   const updateInterestStatusInForm = (propId: string, newStatus: string) => {
-      // Cria uma cópia segura do array de interesses
       const currentInterests = formData.interests ? [...formData.interests] : [];
-      
       const existingIndex = currentInterests.findIndex(i => i.propertyId === propId);
 
       if (existingIndex >= 0) {
-          // Atualiza existente
           currentInterests[existingIndex] = { 
               ...currentInterests[existingIndex], 
               status: newStatus as LeadStatus, 
               updatedAt: new Date().toISOString() 
           };
       } else {
-          // Cria novo se não existir (Correção para dados legados)
           currentInterests.push({ 
               propertyId: propId, 
               status: newStatus as LeadStatus, 
@@ -215,7 +222,7 @@ export const Leads: React.FC = () => {
         <div className="flex items-center space-x-2 mb-3 text-slate-500 font-bold uppercase text-xs tracking-wider">
             <Filter size={14} /> <span>Filtros</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
                 <Search className="text-slate-400 mr-2 flex-shrink-0" size={18} />
                 <input
@@ -239,30 +246,30 @@ export const Leads: React.FC = () => {
 
             <select
                 className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
             >
-                <option value="">Status em Algum Imóvel</option>
-                {Object.values(LeadStatus).map(status => (
-                    <option key={status} value={status}>{status}</option>
+                <option value="">Todas Origens</option>
+                {leadSources.map(src => (
+                    <option key={src} value={src}>{src}</option>
                 ))}
             </select>
 
             <select
                 className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none"
-                value={propertyFilter}
-                onChange={(e) => setPropertyFilter(e.target.value)}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
             >
-                <option value="">Todos os Imóveis</option>
-                {properties.map(p => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
+                <option value="">Todos Status</option>
+                {Object.values(LeadStatus).map(status => (
+                    <option key={status} value={status}>{status}</option>
                 ))}
             </select>
 
-            {(searchTerm || statusFilter || propertyFilter || typeFilter) && (
+            {(searchTerm || statusFilter || propertyFilter || typeFilter || sourceFilter) && (
                 <button 
                     onClick={clearFilters}
-                    className="flex items-center justify-center space-x-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm py-2.5 border border-transparent hover:border-red-200 md:col-start-4"
+                    className="flex items-center justify-center space-x-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm py-2.5 border border-transparent hover:border-red-200"
                 >
                     <X size={16} /> <span>Limpar</span>
                 </button>
@@ -275,10 +282,6 @@ export const Leads: React.FC = () => {
 
       <div className="space-y-4">
         {filteredLeads.map(lead => {
-          const isFromSite = lead.notes?.includes('Site Público');
-          
-          // O lead só é considerado "Novo" visualmente se o status for NEW E ele NÃO tiver nenhum imóvel vinculado.
-          // Se tiver imóvel vinculado, entende-se que já está em qualificação/interesse, então removemos o destaque.
           const hasInterests = lead.interestedInPropertyIds && lead.interestedInPropertyIds.length > 0;
           const isNewLead = lead.status === LeadStatus.NEW && !hasInterests;
           
@@ -295,9 +298,9 @@ export const Leads: React.FC = () => {
                             <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {isFromSite && (
-                                <span className="flex items-center text-xs font-bold px-2 py-0.5 rounded shadow-sm border text-emerald-700 bg-white border-emerald-200">
-                                    <Globe size={12} className="mr-1" /> Site
+                            {lead.source && (
+                                <span className="flex items-center text-xs font-medium px-2 py-0.5 rounded border text-slate-600 bg-slate-50 border-slate-200">
+                                    <Share2 size={10} className="mr-1" /> {lead.source}
                                 </span>
                             )}
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${lead.type === 'Buyer' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -322,13 +325,13 @@ export const Leads: React.FC = () => {
                                         <div 
                                             key={p.id} 
                                             onClick={() => setViewProperty(p)}
-                                            className="flex items-center text-xs bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-sm cursor-pointer transition max-w-xs"
+                                            className="flex items-stretch text-xs bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-sm cursor-pointer transition w-full sm:w-auto sm:max-w-[320px]"
                                         >
-                                            <div className="px-2 py-1.5 flex items-center border-r border-slate-200 truncate">
-                                                <Home size={12} className="mr-1.5 opacity-50 flex-shrink-0"/>
-                                                <span className="truncate font-medium text-slate-700">{p.title}</span>
+                                            <div className="px-3 py-2 flex items-center flex-1 min-w-0 border-r border-slate-100">
+                                                <Home size={12} className="mr-2 text-slate-400 flex-shrink-0"/>
+                                                <span className="truncate font-medium text-slate-700" title={p.title}>{p.title}</span>
                                             </div>
-                                            <div className={`px-2 py-1.5 font-bold border-l ${getStatusColor(status)}`}>
+                                            <div className={`px-3 py-2 font-bold flex items-center whitespace-nowrap ${getStatusColor(status)}`}>
                                                 {status}
                                             </div>
                                         </div>
@@ -433,6 +436,19 @@ export const Leads: React.FC = () => {
                         <option value="Seller">Proprietário</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Origem do Lead</label>
+                    <select 
+                        value={formData.source} 
+                        onChange={e => setFormData({...formData, source: e.target.value})} 
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Selecione...</option>
+                        {leadSources.map(src => (
+                            <option key={src} value={src}>{src}</option>
+                        ))}
+                    </select>
+                  </div>
               </div>
 
               <div className="border-t border-slate-100 pt-4">
@@ -458,7 +474,6 @@ export const Leads: React.FC = () => {
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
                      <div className="space-y-2">
                          {getInterestedProperties(formData.interestedInPropertyIds).map(p => {
-                             // Encontra o interesse específico ou cria um mock se não existir
                              const interest = formData.interests?.find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
                              
                              return (

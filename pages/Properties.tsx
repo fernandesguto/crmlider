@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Property, PropertyType, LeadStatus, PropertyCategory, PropertySubtype } from '../types';
-import { Plus, Trash2, MapPin, BedDouble, Bath, Square, Upload, Image as ImageIcon, ArrowLeft, User, Phone, Mail, MessageCircle, Edit, X, ChevronLeft, ChevronRight, Tag, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, Printer, ArrowUpDown } from 'lucide-react';
+import { Plus, Trash2, MapPin, BedDouble, Bath, Square, Upload, Image as ImageIcon, ArrowLeft, User, Phone, Mail, MessageCircle, Edit, X, ChevronLeft, ChevronRight, Tag, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, Printer, ArrowUpDown, Calendar } from 'lucide-react';
 import { uploadImage } from '../services/db';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { generatePropertyDescription } from '../services/geminiService';
@@ -38,6 +38,10 @@ export const Properties: React.FC = () => {
   const [commissionPercent, setCommissionPercent] = useState<string>('6'); 
   const [commissionFixed, setCommissionFixed] = useState<number>(0);
   const [calculatedCommission, setCalculatedCommission] = useState<number>(0);
+
+  // Estados para datas de locação
+  const [rentalStartDate, setRentalStartDate] = useState('');
+  const [rentalEndDate, setRentalEndDate] = useState('');
 
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
 
@@ -634,6 +638,13 @@ export const Properties: React.FC = () => {
       setCommissionPercent('6'); 
       setCommissionFixed(0);
 
+      // Datas padrão: Hoje até Hoje + 1 Ano
+      const today = new Date().toISOString().split('T')[0];
+      setRentalStartDate(today);
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      setRentalEndDate(nextYear.toISOString().split('T')[0]);
+
       if (selectedProperty && isRental(selectedProperty.type)) {
           setCommissionFixed(initialPrice); 
           setCommissionType('fixed');
@@ -670,13 +681,22 @@ export const Properties: React.FC = () => {
                   return;
               }
 
+              if (isRental(selectedProperty.type) && (!rentalStartDate || !rentalEndDate)) {
+                  alert("Preencha as datas de início e fim do contrato.");
+                  return;
+              }
+
               const leadId = saleType === 'internal' ? selectedBuyerLead : null;
               const soldBy = saleType === 'internal' ? selectedSellingBroker : undefined;
               
               const saleVal = saleType === 'internal' ? finalSalePrice : 0;
               const commVal = saleType === 'internal' ? calculatedCommission : 0;
 
-              await markPropertyAsSold(selectedProperty.id, leadId, saleVal, commVal, soldBy);
+              // Envia datas apenas se for locação
+              const startDate = isRental(selectedProperty.type) ? rentalStartDate : undefined;
+              const endDate = isRental(selectedProperty.type) ? rentalEndDate : undefined;
+
+              await markPropertyAsSold(selectedProperty.id, leadId, saleVal, commVal, soldBy, startDate, endDate);
               
               setSelectedProperty(prev => prev ? ({
                   ...prev, 
@@ -1122,8 +1142,15 @@ export const Properties: React.FC = () => {
                             
                             return (
                                 <div key={lead.id} className="bg-white border border-slate-100 rounded-lg p-3 mb-2 hover:shadow-md transition">
-                                    <div className="flex justify-between items-start mb-2"><div><p className="font-bold text-slate-800">{lead.name}</p><p className="text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString()}</p></div><span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-100 text-slate-600">{currentStatus}</span></div>
-                                    <div className="flex space-x-2 mt-3"><a href={`mailto:${lead.email}`} className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium py-2 rounded flex items-center justify-center space-x-1 border border-slate-200 transition"><Mail size={14} /> <span>Email</span></a><a href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-medium py-2 rounded flex items-center justify-center space-x-1 border border-green-200 transition"><Phone size={14} /> <span>WhatsApp</span></a></div>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <p className="font-bold text-slate-800">{lead.name}</p>
+                                            <p className="text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                        <a href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center space-x-1 border border-green-200 transition">
+                                            <Phone size={14} /> <span>WhatsApp</span>
+                                        </a>
+                                    </div>
                                     
                                     <div className="mt-3 pt-2 border-t border-slate-50">
                                         <div className="relative">
@@ -1200,10 +1227,42 @@ export const Properties: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Campos de Data para Locação */}
+                        {isRental(selectedProperty.type) && (
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <label className="block text-sm font-bold text-blue-800 mb-2 flex items-center">
+                                    <Calendar size={16} className="mr-1.5"/> Período do Contrato
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-blue-700 mb-1">Início</label>
+                                        <input 
+                                            type="date"
+                                            value={rentalStartDate}
+                                            onChange={e => setRentalStartDate(e.target.value)}
+                                            className="w-full bg-white border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-blue-700 mb-1">Fim</label>
+                                        <input 
+                                            type="date"
+                                            value={rentalEndDate}
+                                            onChange={e => setRentalEndDate(e.target.value)}
+                                            className="w-full bg-white border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-blue-600 mt-2 italic">
+                                    * O sistema criará um alerta automático 7 dias antes do vencimento.
+                                </p>
+                            </div>
+                        )}
+
                         {saleType === 'internal' && (
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">
-                                    {isRental(selectedProperty.type) ? 'Valor do Contrato/Aluguel (R$)' : 'Valor Final da Venda (R$)'}
+                                    {isRental(selectedProperty.type) ? 'Valor do Aluguel (R$)' : 'Valor Final da Venda (R$)'}
                                 </label>
                                 <input 
                                     type="text" 

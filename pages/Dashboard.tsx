@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList } from 'recharts';
 import { useApp } from '../context/AppContext';
-import { Building2, Users, CheckCircle, TrendingUp, AlertTriangle, Calendar, Check, DollarSign, User, Key, BarChart3, Filter, X, Mail, Phone, MapPin, BedDouble, Bath, Square, Trophy, Target, Percent, Layout, Settings2, Plus, Eye, ListChecks, UserPlus, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Building2, Users, CheckCircle, TrendingUp, AlertTriangle, Calendar, Check, DollarSign, User, Key, BarChart3, Filter, X, Mail, Phone, MapPin, BedDouble, Bath, Square, Trophy, Target, Percent, Layout, Settings2, Plus, Eye, ListChecks, UserPlus, ChevronLeft, ChevronRight, Clock, PieChart as PieChartIcon, Share2 } from 'lucide-react';
 import { PropertyType, LeadStatus, Lead, Property, Task, User as UserType } from '../types';
 
 const StatCard = ({ icon: Icon, label, value, subtext, color }: any) => (
@@ -238,25 +238,20 @@ export const Dashboard: React.FC = () => {
               }
           });
 
-          // 2. Processar Histórico Financeiro (Contratos Encerrados)
+          // 2. Processar Histórico Financeiro (Contratos Encerrados ou Valores Antigos)
           if (financialRecords) {
               financialRecords.forEach(rec => {
                   const recDate = new Date(rec.date);
                   const commission = rec.commission || 0;
 
                   if (rec.type === 'Rental') {
-                      // Para locação histórica: Conta se o contrato estava ativo neste mês
-                      // Começou antes do fim do mês E (Não terminou ou terminou depois do inicio deste mês)
                       const recEndDate = rec.endDate ? new Date(rec.endDate) : null;
-                      
-                      // Lógica: 
-                      // O contrato deve ter começado antes ou durante este mês.
-                      // O contrato deve ter terminado depois do início deste mês (ou ainda não ter terminado, embora aqui seja histórico)
-                      if (recDate <= endMonth && (!recEndDate || recEndDate >= startMonth)) {
+                      // Conta apenas se começou antes do fim do mês E (não terminou ou terminou DEPOIS do início do mês)
+                      // Ajuste: usar > startMonth para evitar contar no mês exato da troca se a troca for no dia 1
+                      if (recDate <= endMonth && (!recEndDate || recEndDate > startMonth)) {
                           locacoesMes += commission;
                       }
                   } else {
-                      // Para venda histórica: Conta se ocorreu neste mês
                       if (recDate >= startMonth && recDate <= endMonth) {
                           vendasMes += commission;
                       }
@@ -265,6 +260,39 @@ export const Dashboard: React.FC = () => {
           }
 
           data.push({ name: monthKey, Vendas: vendasMes, Locacao: locacoesMes });
+      }
+      return data;
+  };
+
+  const getCommissionSplitData = () => {
+      const months = 6;
+      const data = [];
+      const now = new Date();
+
+      for (let i = months - 1; i >= 0; i--) {
+        const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' });
+        const nextMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
+
+        let agencyTotal = 0;
+        let brokerTotal = 0;
+
+        properties.forEach(p => {
+            if (p.status === 'Sold' && p.soldAt && p.commissionDistribution) {
+                const soldDate = new Date(p.soldAt);
+                if (soldDate >= refDate && soldDate < nextMonth) {
+                    p.commissionDistribution.forEach(split => {
+                        if (split.beneficiaryType === 'Agency') {
+                            agencyTotal += split.value;
+                        } else {
+                            brokerTotal += split.value;
+                        }
+                    });
+                }
+            }
+        });
+
+        data.push({ name: monthKey, Imobiliária: agencyTotal, Corretores: brokerTotal });
       }
       return data;
   };
@@ -323,6 +351,18 @@ export const Dashboard: React.FC = () => {
       return data;
   };
 
+  const getLeadsBySource = () => {
+      const counts: Record<string, number> = {};
+      leads.forEach(l => {
+          const src = l.source || 'Não informado';
+          counts[src] = (counts[src] || 0) + 1;
+      });
+      // Converter para array de objetos e ordenar
+      return Object.entries(counts)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value);
+  };
+
   const getFunnelData = () => {
       const counts: any = { [LeadStatus.NEW]: 0, [LeadStatus.CONTACTED]: 0, [LeadStatus.VISITING]: 0, [LeadStatus.NEGOTIATION]: 0, [LeadStatus.CLOSED]: 0 };
       leads.forEach(l => { if (counts[l.status] !== undefined) counts[l.status]++; });
@@ -339,6 +379,11 @@ export const Dashboard: React.FC = () => {
   const salesValueData = getSalesValueByMonth();
   const leadsGrowthData = getLeadsByMonth();
   const funnelData = getFunnelData();
+  const splitData = getCommissionSplitData();
+  const leadsSourceData = getLeadsBySource();
+
+  // Cores vibrantes para o gráfico de pizza (Fontes de Lead)
+  const SOURCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1'];
 
   const getTopBrokers = () => {
       const brokerStats: Record<string, number> = {};
@@ -372,15 +417,26 @@ export const Dashboard: React.FC = () => {
   const getBrokerCommissions = () => {
       const brokerStats: Record<string, number> = {};
       
-      // Current Properties
+      // 1. Process Current Properties (Check for Splits first)
       soldProperties.forEach(p => { 
-          const actualSellerId = p.soldByUserId || p.brokerId;
-          if (actualSellerId) {
-              brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.commissionValue || 0);
+          // Check if there is a specific distribution saved (split)
+          if (p.commissionDistribution && p.commissionDistribution.length > 0) {
+              p.commissionDistribution.forEach(split => {
+                  // Only count for Brokers, ignore Agency share for this chart
+                  if (split.beneficiaryType === 'Broker') {
+                      brokerStats[split.beneficiaryId] = (brokerStats[split.beneficiaryId] || 0) + (split.value || 0);
+                  }
+              });
+          } else {
+              // Fallback: No split defined, attribute 100% to the seller (or listing broker)
+              const actualSellerId = p.soldByUserId || p.brokerId;
+              if (actualSellerId) {
+                  brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.commissionValue || 0);
+              }
           }
       });
 
-      // Historical Records
+      // 2. Process Historical Records (Kept simple as legacy records don't have split array yet)
       if (financialRecords) {
         financialRecords.forEach(rec => {
             if (rec.brokerId) {
@@ -429,17 +485,27 @@ export const Dashboard: React.FC = () => {
       { id: 'kpi_active', label: 'Imóveis Ativos', type: 'kpi', default: false, component: <StatCard icon={CheckCircle} label="Imóveis Ativos" value={activeProperties} color="bg-cyan-500" /> },
       { id: 'widget_calendar', label: 'Calendário de Tarefas', type: 'chart_med', default: true },
       { id: 'chart_top', label: 'Ranking de Corretores', type: 'chart_small', default: true },
+      { id: 'chart_split', label: 'Distribuição de Comissões', type: 'chart_med', default: true },
       { id: 'chart_broker_comm', label: 'Comissões por Corretor', type: 'chart_med', default: true },
       { id: 'chart_vgv', label: 'Gráfico VGV Mensal', type: 'chart_large', default: true },
       { id: 'chart_leads_growth', label: 'Novos Leads por Mês', type: 'chart_med', default: true },
       { id: 'chart_funnel', label: 'Funil de Vendas', type: 'chart_med', default: true },
       { id: 'chart_comm', label: 'Histórico Comissões', type: 'chart_med', default: true },
+      { id: 'chart_sources', label: 'Origem dos Leads', type: 'chart_med', default: true },
   ];
 
   useEffect(() => {
       const saved = localStorage.getItem('imob_dashboard_widgets');
       if (saved) {
-          setActiveWidgetIds(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          // Migração: Se o novo gráfico 'chart_sources' não estiver na lista salva, adicione-o.
+          if (!parsed.includes('chart_sources')) {
+              const updated = [...parsed, 'chart_sources'];
+              setActiveWidgetIds(updated);
+              localStorage.setItem('imob_dashboard_widgets', JSON.stringify(updated));
+          } else {
+              setActiveWidgetIds(parsed);
+          }
       } else {
           setActiveWidgetIds(WIDGETS.filter(w => w.default).map(w => w.id));
       }
@@ -619,6 +685,23 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
 
+          {isActive('chart_split') && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><PieChartIcon className="mr-2 text-purple-600" size={20}/> Distribuição de Comissões</h3>
+                <ResponsiveContainer width="100%" height="85%">
+                    <BarChart data={splitData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(val) => `R$${val/1000}k`} />
+                        <Tooltip formatter={(val: number) => formatCurrency(val)} cursor={{fill: 'transparent'}} />
+                        <Legend />
+                        <Bar dataKey="Imobiliária" stackId="a" fill="#8b5cf6" barSize={40} />
+                        <Bar dataKey="Corretores" stackId="a" fill="#3b82f6" barSize={40} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+          )}
+
           {isActive('chart_leads_growth') && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
@@ -634,6 +717,33 @@ export const Dashboard: React.FC = () => {
                             <LabelList dataKey="Leads" position="top" fill="#06b6d4" fontSize={11} fontWeight="bold" />
                         </Bar>
                     </BarChart>
+                </ResponsiveContainer>
+            </div>
+          )}
+
+          {isActive('chart_sources') && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><Share2 className="mr-2 text-indigo-500" size={20}/> Origem dos Leads</h3>
+                <ResponsiveContainer width="100%" height="85%">
+                    <PieChart>
+                        <Pie
+                            data={leadsSourceData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            paddingAngle={5}
+                        >
+                            {leadsSourceData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend layout="vertical" verticalAlign="middle" align="right" />
+                    </PieChart>
                 </ResponsiveContainer>
             </div>
           )}

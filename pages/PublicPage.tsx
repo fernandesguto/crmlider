@@ -17,7 +17,8 @@ export const PublicPage: React.FC = () => {
     const [priceMax, setPriceMax] = useState('');
     const [bedroomsFilter, setBedroomsFilter] = useState<string>('');
     const [bathroomsFilter, setBathroomsFilter] = useState<string>('');
-    const [featureFilter, setFeatureFilter] = useState('');
+    // Alterado para array para suportar múltiplos diferenciais
+    const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
     const [sortOption, setSortOption] = useState('date_desc'); // Default: Mais recentes
 
     // Modal State
@@ -59,7 +60,10 @@ export const PublicPage: React.FC = () => {
         
         const matchBedrooms = !bedroomsFilter || property.bedrooms >= Number(bedroomsFilter);
         const matchBathrooms = !bathroomsFilter || property.bathrooms >= Number(bathroomsFilter);
-        const matchFeature = !featureFilter || (property.features && property.features.includes(featureFilter));
+        
+        // Verifica se o imóvel tem TODOS os diferenciais selecionados
+        const matchFeature = selectedFeatures.length === 0 || 
+            selectedFeatures.every(f => property.features && property.features.includes(f));
 
         return matchText && matchType && matchCategory && matchSubtype && matchCity && matchMinPrice && matchMaxPrice && matchBedrooms && matchBathrooms && matchFeature;
       })
@@ -102,8 +106,18 @@ export const PublicPage: React.FC = () => {
         setPriceMax('');
         setBedroomsFilter('');
         setBathroomsFilter('');
-        setFeatureFilter('');
+        setSelectedFeatures([]);
         setSortOption('date_desc');
+    };
+
+    const addFeatureFilter = (feature: string) => {
+        if (feature && !selectedFeatures.includes(feature)) {
+            setSelectedFeatures([...selectedFeatures, feature]);
+        }
+    };
+
+    const removeFeatureFilter = (feature: string) => {
+        setSelectedFeatures(selectedFeatures.filter(f => f !== feature));
     };
 
     const handleViewDetails = (property: Property) => {
@@ -146,6 +160,7 @@ export const PublicPage: React.FC = () => {
                 phone: leadPhone,
                 type: 'Buyer',
                 status: LeadStatus.NEW,
+                source: 'Site', // Auto
                 interestedInPropertyIds: [selectedProperty.id],
                 interests: [{
                     propertyId: selectedProperty.id,
@@ -279,10 +294,16 @@ export const PublicPage: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Diferencial</label>
-                            <select value={featureFilter} onChange={(e) => setFeatureFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="">Todos</option>
-                                {allFeatures.map(f => <option key={f} value={f}>{f}</option>)}
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Diferenciais (Múltiplos)</label>
+                            <select 
+                                onChange={(e) => {
+                                    addFeatureFilter(e.target.value);
+                                    e.target.value = ""; // Reset
+                                }} 
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            >
+                                <option value="">+ Adicionar filtro...</option>
+                                {allFeatures.filter(f => !selectedFeatures.includes(f)).map(f => <option key={f} value={f}>{f}</option>)}
                             </select>
                         </div>
 
@@ -298,7 +319,19 @@ export const PublicPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {(searchTerm || priceMin || priceMax || typeFilter || featureFilter || categoryFilter || subtypeFilter || cityFilter || bedroomsFilter || bathroomsFilter) && (
+                    {/* Chips de Diferenciais Selecionados */}
+                    {selectedFeatures.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4 px-1">
+                            {selectedFeatures.map(feat => (
+                                <span key={feat} className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full flex items-center font-medium border border-blue-200">
+                                    {feat}
+                                    <button onClick={() => removeFeatureFilter(feat)} className="ml-2 hover:text-red-500"><X size={12}/></button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {(searchTerm || priceMin || priceMax || typeFilter || selectedFeatures.length > 0 || categoryFilter || subtypeFilter || cityFilter || bedroomsFilter || bathroomsFilter) && (
                         <div className="flex justify-end pt-2">
                             <button onClick={clearFilters} className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium text-sm flex items-center">
                                 <X size={14} className="mr-1" /> Limpar Filtros
@@ -576,4 +609,3 @@ export const PublicPage: React.FC = () => {
         </div>
     );
 };
-    
