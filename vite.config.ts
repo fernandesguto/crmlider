@@ -7,12 +7,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: '/',
+    base: './', // Alterado de '/' para './' para funcionar em qualquer caminho/preview
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      // Desativa a limpeza automática interna para evitar erros de 'ENOTDIR' na Vercel
-      emptyOutDir: false,
+      emptyOutDir: true,
       sourcemap: false
     },
     resolve: {
