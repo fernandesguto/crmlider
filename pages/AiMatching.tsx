@@ -769,15 +769,29 @@ export const AiMatching: React.FC = () => {
             {activeTab === 'chat' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px] md:h-[calc(100vh-240px)]">
-                        {/* Chat Header */}
-                        <div className="bg-blue-600 p-4 flex items-center text-white">
-                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3 backdrop-blur-sm">
-                                <Bot size={24} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg">Consultor Imobiliário Virtual</h3>
-                                <p className="text-blue-100 text-xs">Especialista em Direito Imobiliário e Vendas</p>
-                            </div>
+                        
+                        {/* Input Area (Moved to Top) */}
+                        <div className="p-4 bg-white border-b border-slate-100">
+                            <form onSubmit={handleChatSubmit} className="relative">
+                                <input 
+                                    type="text" 
+                                    value={chatQuery}
+                                    onChange={(e) => setChatQuery(e.target.value)}
+                                    placeholder="Ex: Quais documentos preciso para financiar um imóvel usado?"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl py-4 pl-5 pr-14 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition shadow-sm"
+                                    disabled={isChatLoading}
+                                />
+                                <button 
+                                    type="submit" 
+                                    disabled={!chatQuery.trim() || isChatLoading}
+                                    className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    <Send size={20} />
+                                </button>
+                            </form>
+                            <p className="text-center text-xs text-slate-400 mt-2">
+                                A IA pode cometer erros. Verifique informações críticas.
+                            </p>
                         </div>
 
                         {/* Chat Content */}
@@ -828,30 +842,6 @@ export const AiMatching: React.FC = () => {
                                     Consultando base de conhecimento...
                                 </div>
                             )}
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="p-4 bg-white border-t border-slate-100">
-                            <form onSubmit={handleChatSubmit} className="relative">
-                                <input 
-                                    type="text" 
-                                    value={chatQuery}
-                                    onChange={(e) => setChatQuery(e.target.value)}
-                                    placeholder="Ex: Quais documentos preciso para financiar um imóvel usado?"
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl py-4 pl-5 pr-14 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition shadow-sm"
-                                    disabled={isChatLoading}
-                                />
-                                <button 
-                                    type="submit" 
-                                    disabled={!chatQuery.trim() || isChatLoading}
-                                    className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                                >
-                                    <Send size={20} />
-                                </button>
-                            </form>
-                            <p className="text-center text-xs text-slate-400 mt-2">
-                                A IA pode cometer erros. Verifique informações críticas.
-                            </p>
                         </div>
                     </div>
                 </div>
