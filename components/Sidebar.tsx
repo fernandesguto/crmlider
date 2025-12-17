@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-none">ImobERP</h1>
-                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">v2.0 (Nova)</span>
+                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">v2.1 (Online)</span>
                         </div>
                     </div>
                 )}
