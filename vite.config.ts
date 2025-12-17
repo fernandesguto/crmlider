@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: './', // Alterado de '/' para './' para funcionar em qualquer caminho/preview
+    base: './', 
     build: {
-      outDir: 'dist',
+      outDir: 'build', // Alterado de 'dist' para 'build' para evitar conflito com arquivo existente
       assetsDir: 'assets',
       emptyOutDir: true,
       sourcemap: false
