@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      emptyOutDir: true, // Deixa o Vite limpar o diretório de forma segura
+      // Desativa a limpeza automática interna para evitar erros de 'ENOTDIR' na Vercel
+      emptyOutDir: false,
       sourcemap: false
     },
     resolve: {
