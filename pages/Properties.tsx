@@ -6,7 +6,7 @@ import { Plus, Trash2, MapPin, BedDouble, Bath, Square, Upload, Image as ImageIc
 import { uploadImage } from '../services/db';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { generatePropertyDescription } from '../services/geminiService';
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 
 export const Properties: React.FC = () => {
   const { properties, addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, getNextPropertyCode, currentUser, leads, users, currentAgency, updateLeadInterestStatus } = useApp();
@@ -599,7 +599,7 @@ export const Properties: React.FC = () => {
             bathrooms: Number(formData.bathrooms),
             area: Number(formData.area),
             images: finalImages,
-            brokerId: (isEditing && formData.brokerId) ? formData.brokerId : currentUser.id, 
+            brokerId: (isEditing && formData.brokerId) ? formData.brokerId : (currentUser?.id || ''), 
             agencyId: (isEditing && formData.agencyId) ? formData.agencyId : (currentAgency?.id || ''),
             status: (formData.status || 'Active') as 'Active' | 'Sold'
         } as Property;
@@ -788,7 +788,9 @@ export const Properties: React.FC = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">Valor (R$)</label>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                            {formData.type?.includes('Locação') ? 'Valor do Aluguel (R$)' : 'Valor de Venda (R$)'}
+                        </label>
                         <input 
                             type="text" 
                             name="price" 
@@ -1027,7 +1029,9 @@ export const Properties: React.FC = () => {
                                 <div className="text-center"><div className="flex items-center justify-center text-blue-600 mb-1"><Square size={24} className="md:w-7 md:h-7" /></div><p className="text-xl md:text-2xl font-bold text-slate-800">{selectedProperty.area}</p><p className="text-[10px] md:text-xs text-slate-500 uppercase font-semibold">m² Área</p></div>
                             </div>
                             <div className="text-center md:text-right w-full md:w-auto">
-                                <p className="text-sm text-slate-500 mb-1">Valor</p>
+                                <p className="text-sm text-slate-500 mb-1">
+                                    {isRentalProperty ? 'Valor Aluguel' : 'Valor Venda'}
+                                </p>
                                 <p className="text-3xl md:text-4xl font-bold text-blue-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedProperty.price)}</p>
                             </div>
                         </div>

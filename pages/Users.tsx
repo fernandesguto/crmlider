@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { User, OperationResult } from '../types';
@@ -77,14 +78,13 @@ export const Users: React.FC = () => {
       if (isEditing && formData.id) {
           const original = users.find(u => u.id === formData.id);
           if (original) {
-              // @ts-ignore
               result = await updateUser({
                   ...original,
-                  name: formData.name,
-                  email: formData.email,
+                  name: formData.name || original.name, // Ensure non-undefined string
+                  email: formData.email || original.email, // Ensure non-undefined string
                   password: formData.password,
                   phone: formData.phone,
-                  role: formData.role
+                  role: (formData.role as 'Admin' | 'Broker') || original.role // Ensure valid literal
               });
           }
       } else {

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Task, Lead, Property } from '../types';
@@ -59,7 +60,7 @@ export const Tasks: React.FC = () => {
           title: newTaskTitle,
           dueDate: newTaskDate, 
           completed: false,
-          assignedTo: selectedAssignedTo || currentUser.id,
+          assignedTo: selectedAssignedTo || currentUser?.id || '',
           agencyId: currentAgency?.id || '',
           leadId: selectedLeadId || undefined,
           propertyId: selectedPropertyId || undefined
