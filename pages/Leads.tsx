@@ -9,6 +9,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 export const Leads: React.FC = () => {
   const context: any = useApp();
   
+  // Garantia de dados para evitar erros de renderização
   const leads: any[] = context.leads || [];
   const properties: any[] = context.properties || [];
   const { addLead, updateLead, deleteLead, updateLeadInterestStatus, currentAgency } = context;
@@ -23,9 +24,9 @@ export const Leads: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   
   const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
-  const [viewProperty, setViewProperty] = useState<any>(null);
+  const [viewProperty, setViewProperty] = useState<any | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [leadToDelete, setLeadToDelete] = useState<any>(null);
+  const [leadToDelete, setLeadToDelete] = useState<any | null>(null);
   
   const [formData, setFormData] = useState<any>({
     name: '',
@@ -40,7 +41,15 @@ export const Leads: React.FC = () => {
   });
 
   const leadSources = [
-      'Indicação', 'Site', 'Instagram', 'Facebook', 'Google Ads', 'Facebook Ads', 'WhatsApp', 'Passante/Loja', 'Outros'
+      'Indicação',
+      'Site',
+      'Instagram',
+      'Facebook',
+      'Google Ads',
+      'Facebook Ads',
+      'WhatsApp',
+      'Passante/Loja',
+      'Outros'
   ];
 
   const getInterestStatus = (lead: any, propId: string) => {
@@ -66,13 +75,18 @@ export const Leads: React.FC = () => {
         return matchesSearch && matchesStatus && matchesProperty && matchesType && matchesSource;
     })
     .sort((a: any, b: any) => {
+        // Leads novos no topo
         if (a.status === LeadStatus.NEW && b.status !== LeadStatus.NEW) return -1;
         if (a.status !== LeadStatus.NEW && b.status === LeadStatus.NEW) return 1;
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
 
   const clearFilters = () => {
-      setSearchTerm(''); setStatusFilter(''); setPropertyFilter(''); setTypeFilter(''); setSourceFilter('');
+      setSearchTerm('');
+      setStatusFilter('');
+      setPropertyFilter('');
+      setTypeFilter('');
+      setSourceFilter('');
   };
 
   const getStatusColor = (status: string) => {
@@ -92,30 +106,47 @@ export const Leads: React.FC = () => {
           name: '', email: '', phone: '', type: 'Buyer', source: 'WhatsApp',
           status: LeadStatus.NEW, interestedInPropertyIds: [], interests: [], notes: '' 
       });
-      setIsEditing(false); setShowModal(true); setIsPropertyDropdownOpen(false);
+      setIsEditing(false);
+      setShowModal(true);
+      setIsPropertyDropdownOpen(false);
   };
 
   const handleOpenEdit = (lead: any) => {
-      setFormData({ ...lead, interests: lead.interests || [] });
-      setIsEditing(true); setShowModal(true); setIsPropertyDropdownOpen(false);
+      setFormData({ 
+          ...lead,
+          interests: lead.interests || [] 
+      });
+      setIsEditing(true);
+      setShowModal(true);
+      setIsPropertyDropdownOpen(false);
   };
 
   const handleDeleteClick = (lead: any) => {
-      setLeadToDelete(lead); setDeleteModalOpen(true);
+      setLeadToDelete(lead);
+      setDeleteModalOpen(true);
   };
 
   const confirmDelete = async () => {
-      if (leadToDelete) await deleteLead(leadToDelete.id);
-      setDeleteModalOpen(false); setLeadToDelete(null);
+      if (leadToDelete) {
+          await deleteLead(leadToDelete.id);
+      }
+      setDeleteModalOpen(false);
+      setLeadToDelete(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
+
     if (isEditing && formData.id) {
         await updateLead(formData);
     } else {
-        await addLead({ ...formData, id: Date.now().toString(), createdAt: new Date().toISOString(), agencyId: currentAgency?.id || '' });
+        await addLead({
+            ...formData,
+            id: Date.now().toString(),
+            createdAt: new Date().toISOString(),
+            agencyId: currentAgency?.id || ''
+        });
     }
     setShowModal(false);
   };
@@ -123,9 +154,15 @@ export const Leads: React.FC = () => {
   const addPropertyInterest = (propertyId: string) => {
       if (!propertyId) return;
       const interested = formData.interestedInPropertyIds || [];
-      if (!interested.includes(propertyId)) {
-          const newInterests = [...(formData.interests || []), { propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() }];
-          setFormData({ ...formData, interestedInPropertyIds: [...interested, propertyId], interests: newInterests });
+      const alreadyHas = interested.includes(propertyId);
+      if (!alreadyHas) {
+          const newInterests = [...(formData.interests || [])];
+          newInterests.push({ propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() });
+          setFormData({
+              ...formData,
+              interestedInPropertyIds: [...interested, propertyId],
+              interests: newInterests
+          });
       }
   };
 
@@ -139,57 +176,145 @@ export const Leads: React.FC = () => {
 
   const updateInterestStatusInForm = (propId: string, newStatus: string) => {
       const currentInterests = [...(formData.interests || [])];
-      const idx = currentInterests.findIndex((i: any) => i.propertyId === propId);
-      if (idx >= 0) currentInterests[idx] = { ...currentInterests[idx], status: newStatus, updatedAt: new Date().toISOString() };
+      const existingIndex = currentInterests.findIndex((i: any) => i.propertyId === propId);
+      if (existingIndex >= 0) {
+          currentInterests[existingIndex] = { 
+              ...currentInterests[existingIndex], 
+              status: newStatus, 
+              updatedAt: new Date().toISOString() 
+          };
+      }
       setFormData({ ...formData, interests: currentInterests });
   };
 
-  const getInterestedProperties = (ids: string[]) => properties.filter(p => ids.includes(p.id));
-  const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  const getInterestedProperties = (ids: string[]) => {
+    return properties.filter(p => ids.includes(p.id));
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  };
 
   return (
     <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div><h1 className="text-2xl md:text-3xl font-bold text-slate-800">Gerenciamento de Leads</h1><p className="text-slate-500 text-sm md:text-base">Acompanhe potenciais clientes e controle o funil de vendas</p></div>
-        <button onClick={handleOpenCreate} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl flex items-center justify-center space-x-2 transition shadow-lg shadow-blue-500/20 font-bold"><Plus size={20} /> <span>Novo Lead</span></button>
+        <div>
+           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Gerenciamento de Leads</h1>
+           <p className="text-slate-500 text-sm md:text-base">Acompanhe potenciais clientes e controle o funil de vendas</p>
+        </div>
+        <button onClick={handleOpenCreate} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl flex items-center justify-center space-x-2 transition shadow-lg shadow-blue-500/20 font-bold">
+          <Plus size={20} /> <span>Novo Lead</span>
+        </button>
       </div>
 
+      {/* FILTROS */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 p-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="relative"><Search className="absolute left-3 top-3 text-slate-400" size={18} /><input type="text" placeholder="Nome ou telefone..." className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-            <select className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="">Todos os Perfis</option><option value="Buyer">Comprador</option><option value="Seller">Proprietário</option></select>
-            <select className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}><option value="">Todas Origens</option>{leadSources.map(src => <option key={src} value={src}>{src}</option>)}</select>
-            <select className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="">Todos Status</option>{Object.values(LeadStatus).map(status => <option key={status} value={status}>{status}</option>)}</select>
-            <div className="flex gap-2"><button onClick={clearFilters} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition font-bold text-sm py-2.5">Limpar</button></div>
+            <div className="relative">
+                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                <input
+                    type="text"
+                    placeholder="Nome ou telefone..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            <select
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+            >
+                <option value="">Todos os Perfis</option>
+                <option value="Buyer">Comprador</option>
+                <option value="Seller">Proprietário</option>
+            </select>
+
+            <select
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+            >
+                <option value="">Todas Origens</option>
+                {leadSources.map(src => (
+                    <option key={src} value={src}>{src}</option>
+                ))}
+            </select>
+
+            <select
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 block w-full p-2.5 outline-none"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+            >
+                <option value="">Todos Status</option>
+                {Object.values(LeadStatus).map(status => (
+                    <option key={status} value={status}>{status}</option>
+                ))}
+            </select>
+
+            <div className="flex gap-2">
+                <button 
+                    onClick={clearFilters}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition font-bold text-sm py-2.5"
+                >
+                    Limpar
+                </button>
+            </div>
         </div>
-        <div className="mt-3 text-left text-xs font-bold text-slate-400 uppercase tracking-widest px-1">{filteredLeads.length} leads encontrados</div>
+        <div className="mt-3 text-left text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+            {filteredLeads.length} leads encontrados
+        </div>
       </div>
 
+      {/* LISTAGEM */}
       <div className="grid grid-cols-1 gap-4 pb-20">
         {filteredLeads.map((lead: any) => {
           const interestedIn = lead.interestedInPropertyIds || [];
-          const isNewLead = lead.status === LeadStatus.NEW && interestedIn.length === 0;
+          const hasInterests = interestedIn.length > 0;
+          const isNewLead = lead.status === LeadStatus.NEW && !hasInterests;
+          
           return (
-            <div key={lead.id} className={`rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col lg:flex-row justify-between items-start group transition-all hover:shadow-md gap-4 ${isNewLead ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+            <div 
+                key={lead.id} 
+                className={`rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col lg:flex-row justify-between items-start group transition-all hover:shadow-md gap-4 
+                ${isNewLead ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}
+            >
                 <div className="flex-1 w-full min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
                         <div className="flex items-center gap-2">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${lead.type === 'Buyer' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}><User size={20} /></div>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${lead.type === 'Buyer' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
+                                <User size={20} />
+                            </div>
                             <div>
                                 <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${lead.type === 'Buyer' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>{lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}</span>
-                                    {lead.source && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider"><Share2 size={10} className="mr-1" /> {lead.source}</span>}
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${lead.type === 'Buyer' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>
+                                        {lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}
+                                    </span>
+                                    {lead.source && (
+                                        <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider">
+                                            <Share2 size={10} className="mr-1" /> {lead.source}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-500 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div className="flex items-center space-x-2 truncate"><Mail size={14} className="text-slate-400" /> <span className="truncate">{lead.email || 'N/A'}</span></div>
                         <div className="flex items-center space-x-2"><Phone size={14} className="text-slate-400" /> <span>{lead.phone || 'N/A'}</span></div>
                         <div className="flex items-center space-x-2"><Clock size={14} className="text-slate-400" /> <span>Desde {new Date(lead.createdAt || 0).toLocaleDateString()}</span></div>
                     </div>
-                    {lead.notes && <div className="mb-4 flex items-start space-x-2"><FileText size={14} className="text-slate-400 mt-0.5 flex-shrink-0" /><p className="text-sm text-slate-600 italic line-clamp-2">{lead.notes}</p></div>}
+
+                    {lead.notes && (
+                        <div className="mb-4 flex items-start space-x-2">
+                            <FileText size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-slate-600 italic line-clamp-2">{lead.notes}</p>
+                        </div>
+                    )}
+                    
                     {interestedIn.length > 0 && (
                         <div className="mt-4">
                             <span className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest px-1">Interesses e Negociações</span>
@@ -197,9 +322,20 @@ export const Leads: React.FC = () => {
                                 {getInterestedProperties(interestedIn).map((p: any) => {
                                     const status = getInterestStatus(lead, p.id);
                                     return (
-                                        <div key={p.id} onClick={() => setViewProperty(p)} className="flex items-stretch text-xs bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 cursor-pointer transition w-full sm:w-auto">
-                                            <div className="px-3 py-2 flex items-center flex-1 min-w-0 border-r border-slate-100 gap-3"><div className="w-8 h-8 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="truncate font-bold text-slate-700">{p.title}</span></div>
-                                            <div className={`px-4 py-2 font-bold flex items-center whitespace-nowrap ${getStatusColor(status)}`}>{status}</div>
+                                        <div 
+                                            key={p.id} 
+                                            onClick={() => setViewProperty(p)}
+                                            className="flex items-stretch text-xs bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 cursor-pointer transition w-full sm:w-auto"
+                                        >
+                                            <div className="px-3 py-2 flex items-center flex-1 min-w-0 border-r border-slate-100 gap-3">
+                                                <div className="w-8 h-8 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0">
+                                                    <img src={p.images?.[0]} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <span className="truncate font-bold text-slate-700" title={p.title}>{p.title}</span>
+                                            </div>
+                                            <div className={`px-4 py-2 font-bold flex items-center whitespace-nowrap ${getStatusColor(status)}`}>
+                                                {status}
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -207,11 +343,33 @@ export const Leads: React.FC = () => {
                         </div>
                     )}
                 </div>
+
                 <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 flex-wrap lg:flex-col lg:items-end">
-                    {lead.phone && <a href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`} target="_blank" className="w-full lg:w-48 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition flex items-center justify-center shadow-lg shadow-green-500/20 text-sm font-bold"><MessageCircle size={18} className="mr-2"/> WhatsApp</a>}
+                    {lead.phone && (
+                        <a 
+                            href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            className="w-full lg:w-48 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition flex items-center justify-center shadow-lg shadow-green-500/20 text-sm font-bold"
+                        >
+                            <MessageCircle size={18} className="mr-2"/> WhatsApp
+                        </a>
+                    )}
+
                     <div className="flex gap-2 w-full lg:w-auto justify-end">
-                        <button onClick={() => handleOpenEdit(lead)} className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition border border-slate-200 flex-shrink-0"><Edit size={20} /></button>
-                        <button onClick={() => handleDeleteClick(lead)} className="p-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition border border-slate-200 flex-shrink-0"><Trash2 size={20} /></button>
+                        <button 
+                            onClick={() => handleOpenEdit(lead)}
+                            className="p-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition border border-slate-200 flex-shrink-0"
+                            title="Editar Lead"
+                        >
+                            <Edit size={20} />
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteClick(lead)}
+                            className="p-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition border border-slate-200 flex-shrink-0"
+                            title="Excluir Lead"
+                        >
+                            <Trash2 size={20} />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -219,60 +377,140 @@ export const Leads: React.FC = () => {
         })}
       </div>
 
+       {/* MODAL CADASTRO/EDIÇÃO */}
        {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><X size={24}/></button>
-            <h2 className="text-2xl font-bold mb-8 text-slate-900 flex items-center"><div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-4">{isEditing ? <Edit size={24} /> : <Plus size={24} />}</div>{isEditing ? 'Editar Lead' : 'Novo Lead'}</h2>
+            
+            <h2 className="text-2xl font-bold mb-8 text-slate-900 flex items-center">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-4">
+                    {isEditing ? <Edit size={24} /> : <Plus size={24} />}
+                </div>
+                {isEditing ? 'Editar Lead' : 'Novo Lead'}
+            </h2>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2"><label className="block text-sm font-bold text-slate-700 mb-2">Nome Completo</label><input required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Nome do cliente" /></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Email</label><input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="exemplo@email.com" /></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Telefone / WhatsApp</label><input required value={formData.phone || ''} onChange={e => { let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2'); setFormData({...formData, phone: val}); }} maxLength={15} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" /></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Perfil do Cliente</label><select value={formData.type || 'Buyer'} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="Buyer">Comprador / Locatário</option><option value="Seller">Proprietário / Locador</option></select></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Meio de Entrada (Origem)</label><select required value={formData.source || ''} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="">Selecione a origem...</option>{leadSources.map(src => <option key={src} value={src}>{src}</option>)}</select></div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Nome Completo</label>
+                    <input required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Nome do cliente" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                    <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="exemplo@email.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Telefone / WhatsApp</label>
+                    <input required value={formData.phone || ''} onChange={e => { let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2'); setFormData({...formData, phone: val}); }} maxLength={15} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Perfil do Cliente</label>
+                    <select value={formData.type || 'Buyer'} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <option value="Buyer">Comprador / Locatário</option>
+                        <option value="Seller">Proprietário / Locador</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Meio de Entrada (Origem)</label>
+                    <select required value={formData.source || ''} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <option value="">Selecione a origem...</option>
+                        {leadSources.map(src => <option key={src} value={src}>{src}</option>)}
+                    </select>
+                  </div>
               </div>
+
               <div className="border-t border-slate-100 pt-6">
-                 <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center"><Building2 className="mr-2 text-blue-500" size={18} /> Vincular Imóveis de Interesse</label>
+                 <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center">
+                    <Building2 className="mr-2 text-blue-500" size={18} /> Vincular Imóveis de Interesse
+                 </label>
                  <div className="relative mb-4">
-                    <button type="button" onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)} className="w-full bg-white border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center justify-between shadow-sm"><span className="text-slate-500 font-medium">+ Adicionar imóvel à lista...</span><ChevronDown size={18} className="text-slate-400"/></button>
+                    <button type="button" onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)} className="w-full bg-white border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center justify-between shadow-sm">
+                        <span className="text-slate-500 font-medium">+ Adicionar imóvel à lista...</span>
+                        <ChevronDown size={18} className="text-slate-400"/>
+                    </button>
                     {isPropertyDropdownOpen && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
-                            {properties.filter((p: any) => !(formData.interestedInPropertyIds || []).includes(p.id)).map((p: any) => (
-                                <div key={p.id} onClick={() => { addPropertyInterest(p.id); setIsPropertyDropdownOpen(false); }} className="flex items-center gap-4 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 transition group"><div className="w-12 h-12 bg-slate-200 rounded-xl overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><div className="flex flex-col min-w-0"><span className="text-sm font-bold text-slate-700 truncate">{p.title}</span><span className="text-xs text-blue-600 font-bold">{formatCurrency(p.price || 0)}</span></div></div>
+                            {properties.filter(p => !(formData.interestedInPropertyIds || []).includes(p.id)).map(p => (
+                                <div key={p.id} onClick={() => { addPropertyInterest(p.id); setIsPropertyDropdownOpen(false); }} className="flex items-center gap-4 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 transition group">
+                                    <div className="w-12 h-12 bg-slate-200 rounded-xl overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-bold text-slate-700 truncate">{p.title}</span>
+                                        <span className="text-xs text-blue-600 font-bold">{formatCurrency(p.price || 0)}</span>
+                                    </div>
+                                </div>
                             ))}
+                            {properties.length === 0 && <div className="p-4 text-center text-slate-400 text-sm">Nenhum imóvel cadastrado.</div>}
                         </div>
                     )}
                  </div>
+
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
                      <div className="space-y-3">
                          {getInterestedProperties(formData.interestedInPropertyIds).map((p: any) => {
-                             const interest = (formData.interests || []).find((i: any) => i.propertyId === p.id) || { status: LeadStatus.NEW };
+                             const interest = (formData.interests || []).find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
                              return (
                                  <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between shadow-sm">
-                                     <div className="flex items-center gap-3 flex-1 overflow-hidden"><div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="font-bold text-slate-700 truncate text-sm">{p.title}</span></div>
-                                     <div className="flex items-center space-x-3 ml-4"><select value={interest.status} onChange={(e) => updateInterestStatusInForm(p.id, e.target.value)} className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">{Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}</select><button type="button" onClick={() => removePropertyInterest(p.id)} className="text-slate-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button></div>
+                                     <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                                         <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div>
+                                         <span className="font-bold text-slate-700 truncate text-sm">{p.title}</span>
+                                     </div>
+                                     <div className="flex items-center space-x-3 ml-4">
+                                         <select value={interest.status} onChange={(e) => updateInterestStatusInForm(p.id, e.target.value)} className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">
+                                             {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                                         </select>
+                                         <button type="button" onClick={() => removePropertyInterest(p.id)} className="text-slate-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                                     </div>
                                  </div>
                              )
                          })}
                      </div>
-                 ) : <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">Clique acima para vincular imóveis.</p>}
+                 ) : <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">Clique acima para vincular imóveis que este cliente demonstrou interesse.</p>}
               </div>
-              <div className="border-t border-slate-100 pt-6"><label className="block text-sm font-bold text-slate-800 mb-2">Observações</label><textarea rows={4} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" placeholder="Perfil, preferências, etc..." /></div>
-              <div className="flex justify-end space-x-3 pt-6 border-t border-slate-100"><button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-xl transition font-bold">Cancelar</button><button type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center space-x-2 shadow-lg shadow-blue-500/20"><Save size={20} /><span>{isEditing ? 'Atualizar Lead' : 'Salvar Lead'}</span></button></div>
+
+              <div className="border-t border-slate-100 pt-6">
+                  <label className="block text-sm font-bold text-slate-800 mb-2">Observações do Atendimento</label>
+                  <textarea rows={4} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm leading-relaxed" placeholder="Perfil do cliente, preferências de bairro, horários de visita, etc..." />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-xl transition font-bold">Cancelar</button>
+                <button type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center space-x-2 shadow-lg shadow-blue-500/20"><Save size={20} /><span>{isEditing ? 'Atualizar Lead' : 'Salvar Lead'}</span></button>
+              </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* QUICK VIEW IMÓVEL */}
       {viewProperty && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-                  <div className="relative h-56 bg-slate-200"><img src={viewProperty.images?.[0]} className="w-full h-full object-cover" alt="" /><button onClick={() => setViewProperty(null)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full"><X size={20} /></button></div>
-                  <div className="p-6"><h3 className="text-xl font-bold text-slate-800 mb-2">{viewProperty.title}</h3><p className="text-2xl font-black text-blue-600 mb-6">{formatCurrency(viewProperty.price || 0)}</p><button onClick={() => setViewProperty(null)} className="w-full bg-slate-100 py-2.5 rounded-xl font-bold transition">Fechar</button></div>
+                  <div className="relative h-56 bg-slate-200">
+                      <img src={viewProperty.images?.[0] || 'https://via.placeholder.com/600'} alt={viewProperty.title} className="w-full h-full object-cover" />
+                      <button onClick={() => setViewProperty(null)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"><X size={20} /></button>
+                      <div className="absolute bottom-4 left-4 flex gap-2"><span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg uppercase">{viewProperty.type}</span><span className="bg-white text-slate-800 text-[10px] font-bold px-2 py-1 rounded shadow-lg font-mono">#{viewProperty.code}</span></div>
+                  </div>
+                  <div className="p-6">
+                      <h3 className="text-xl font-bold text-slate-800 leading-tight mb-2">{viewProperty.title}</h3>
+                      <p className="text-sm text-slate-500 flex items-center mb-6 font-medium"><MapPin size={16} className="mr-1.5 text-slate-400"/> {viewProperty.neighborhood}, {viewProperty.city}</p>
+                      
+                      <div className="grid grid-cols-3 gap-4 text-slate-600 text-sm py-4 border-y border-slate-100 mb-6">
+                          <div className="text-center"><BedDouble size={20} className="mx-auto mb-1 text-blue-500"/><p className="font-bold text-slate-800">{viewProperty.bedrooms}</p></div>
+                          <div className="text-center"><Bath size={20} className="mx-auto mb-1 text-blue-500"/><p className="font-bold text-slate-800">{viewProperty.bathrooms}</p></div>
+                          <div className="text-center"><Square size={20} className="mx-auto mb-1 text-blue-500"/><p className="font-bold text-slate-800">{viewProperty.area}m²</p></div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <p className="text-2xl font-black text-blue-600">{formatCurrency(viewProperty.price || 0)}</p>
+                        <button onClick={() => setViewProperty(null)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold transition">Fechar</button>
+                      </div>
+                  </div>
               </div>
           </div>
       )}
-      <ConfirmModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} title="Excluir Lead" message={`Tem certeza que deseja excluir?`} confirmText="Sim, Excluir" isDestructive />
+
+      <ConfirmModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} title="Excluir Lead" message={`Tem certeza que deseja excluir o lead ${leadToDelete?.name}? Todos os registros de interesse serão removidos.`} confirmText="Sim, Excluir" isDestructive />
     </div>
   );
 };
