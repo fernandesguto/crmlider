@@ -1,27 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppProvider, useApp } from './context/AppContext.tsx';
-import { Sidebar } from './components/Sidebar.tsx';
-import { Dashboard } from './pages/Dashboard.tsx';
-import { Properties } from './pages/Properties.tsx';
-import { Leads } from './pages/Leads.tsx';
-import { Tasks } from './pages/Tasks.tsx';
-import { Users } from './pages/Users.tsx';
-import { Settings } from './pages/Settings.tsx';
-import { Rentals } from './pages/Rentals.tsx';
-import { Sales } from './pages/Sales.tsx';
-import { CommissionManager } from './pages/CommissionManager.tsx';
-import { PublicPage } from './pages/PublicPage.tsx';
-import { SuperAdmin } from './pages/SuperAdmin.tsx';
-import { LandingPage } from './pages/LandingPage.tsx';
-import { Login } from './pages/Login.tsx';
-import { SetupModal } from './components/SetupModal.tsx';
-import { checkConfiguration } from './services/supabaseClient.ts';
-import { NotificationModal } from './components/NotificationModal.tsx';
-import { AiMatching } from './pages/AiMatching.tsx';
+import { AppProvider, useApp } from './context/AppContext';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './pages/Dashboard';
+import { Properties } from './pages/Properties';
+import { Leads } from './pages/Leads';
+import { Tasks } from './pages/Tasks';
+import { Users } from './pages/Users';
+import { Settings } from './pages/Settings';
+import { Rentals } from './pages/Rentals';
+import { Sales } from './pages/Sales';
+import { CommissionManager } from './pages/CommissionManager';
+import { PublicPage } from './pages/PublicPage';
+import { SuperAdmin } from './pages/SuperAdmin';
+import { LandingPage } from './pages/LandingPage';
+import { Login } from './pages/Login';
+import { SetupModal } from './components/SetupModal';
+import { checkConfiguration } from './services/supabaseClient';
+import { NotificationModal } from './components/NotificationModal';
+import { AiMatching } from './pages/AiMatching';
 import { Menu, Building2 } from 'lucide-react';
-// Import missing Lead and Property types
-import { Lead, Property } from './types.ts';
+import { Lead, Property } from './types';
 
 const ThemeController = () => {
     const { themeColor, darkMode } = useApp();
@@ -99,9 +98,7 @@ const MainLayout: React.FC = () => {
       )
   }
 
-  // Fixed Error in file App.tsx on line 100: Cannot find name 'Lead'.
   const taskLead = notificationTask && notificationTask.leadId ? (leads as Lead[]).find(l => l.id === notificationTask.leadId) : undefined;
-  // Fixed Error in file App.tsx on line 102: Cannot find name 'Property'.
   const leadPropertyInterest = notificationLead && notificationLead.interestedInPropertyIds.length > 0 
       ? (properties as Property[]).find(p => p.id === notificationLead.interestedInPropertyIds[0]) 
       : undefined;
