@@ -1,6 +1,6 @@
 
-import { supabase } from './supabaseClient.ts';
-import { Property, Lead, Task, User, Agency } from '../types.ts';
+import { supabase } from './supabaseClient';
+import { Property, Lead, Task, User, Agency } from '../types';
 
 const getSqlSuggestion = (table: string, errorMsg: string) => {
     const msg = errorMsg.toLowerCase();

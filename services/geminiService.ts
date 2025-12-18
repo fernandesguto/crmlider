@@ -3,12 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PropertyType, Property, Lead, AiMatchOpportunity, AiRecoveryOpportunity, LeadStatus } from "../types";
 
 // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  return apiKey ? new GoogleGenAI({ apiKey }) : null;
-};
-
 export const isAiConfigured = (): boolean => !!process.env.API_KEY;
 
 export const getDebugInfo = () => {
@@ -28,9 +22,10 @@ const parseGenerativeJson = (text: string | undefined): any => {
 };
 
 // Create a new GoogleGenAI instance right before making an API call.
+// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 export const generatePropertyDescription = async (title: string, type: PropertyType, features: string[], area: number, bedrooms: number): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) return "Chave de API não configurada.";
+  // Always use process.env.API_KEY directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Especialista imobiliário. Descrição profissional para: ${title}, ${type}, ${area}m², ${bedrooms} quartos. Destaques: ${features.join(', ')}. Sem markdown.`;
   try {
     const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
@@ -47,8 +42,8 @@ export interface MarketingStrategyResult {
 
 // Create a new GoogleGenAI instance right before making an API call.
 export const generateMarketingStrategy = async (property: Property): Promise<MarketingStrategyResult | null> => {
-    const ai = getAiClient();
-    if (!ai) return null;
+    // Always use process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const priceFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.price);
     
@@ -81,8 +76,9 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
     Retorne apenas o JSON puro, sem markdown ou textos explicativos fora do JSON.`;
 
     try {
+        // Upgrade to gemini-3-pro-preview for complex text task
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -117,19 +113,20 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
 
 // Create a new GoogleGenAI instance right before making an API call.
 export const askRealEstateAgent = async (question: string, leads: Lead[] = [], properties: Property[] = []): Promise<string> => {
-    const ai = getAiClient();
-    if (!ai) return "Chave não configurada.";
+    // Always use process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Consultor imobiliário. Pergunta: "${question}". Dados: ${properties.length} imóveis, ${leads.length} leads. Sem markdown.`;
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Upgrade to gemini-3-pro-preview for advanced reasoning
+        const response = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
         return (response.text || "").replace(/\*/g, '');
     } catch (error) { return "Erro no chat."; }
 };
 
 // Create a new GoogleGenAI instance right before making an API call.
 export const findOpportunities = async (leads: Lead[], properties: Property[]): Promise<AiMatchOpportunity[]> => {
-    const ai = getAiClient();
-    if (!ai) return [];
+    // Always use process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // Prepara dados reduzidos para o prompt
     const simpleLeads = leads.slice(0, 40).map(l => ({ id: l.id, nome: l.name, obs: l.notes || '', interesses: l.interestedInPropertyIds || [] }));
@@ -147,8 +144,9 @@ export const findOpportunities = async (leads: Lead[], properties: Property[]): 
     3. Seja preciso nos cruzamentos de perfil.`;
 
     try {
+        // Upgrade to gemini-3-pro-preview for complex reasoning task
         const response = await ai.models.generateContent({ 
-            model: 'gemini-3-flash-preview', 
+            model: 'gemini-3-pro-preview', 
             contents: prompt, 
             config: { responseMimeType: 'application/json' } 
         });
@@ -162,8 +160,8 @@ export const findOpportunities = async (leads: Lead[], properties: Property[]): 
 
 // Create a new GoogleGenAI instance right before making an API call.
 export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]): Promise<AiRecoveryOpportunity[]> => {
-    const ai = getAiClient();
-    if (!ai) return [];
+    // Always use process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const simpleLeads = leads.filter(l => l.status !== LeadStatus.CLOSED).slice(0, 30).map(l => ({ id: l.id, n: l.name, s: l.status, d: l.createdAt }));
 
@@ -174,8 +172,9 @@ export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]):
     Retorne um JSON Array: [{ "type": "lead", "id": string, "name": string, "daysInactive": number, "info": string, "analysis": string, "suggestion": string(mensagem de whatsapp) }]`;
 
     try {
+        // Upgrade to gemini-3-pro-preview for strategic analysis
         const response = await ai.models.generateContent({ 
-            model: 'gemini-3-flash-preview', 
+            model: 'gemini-3-pro-preview', 
             contents: prompt, 
             config: { responseMimeType: 'application/json' } 
         });
