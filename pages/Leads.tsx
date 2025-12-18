@@ -1,13 +1,17 @@
 
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext.tsx';
-import { Lead, LeadStatus, Property } from '../types.ts';
+import { useApp } from '../context/AppContext';
+import { Lead, LeadStatus, Property } from '../types';
 import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2, ChevronDown } from 'lucide-react';
-import { ConfirmModal } from '../components/ConfirmModal.tsx';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
-  const { leads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties, currentAgency } = useApp();
+  const { leads: contextLeads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties: contextProperties, currentAgency } = useApp();
   
+  // Cast explícito para evitar erro de 'unknown' caso o compilador perca a referência do tipo importado
+  const leads = contextLeads as Lead[];
+  const properties = contextProperties as Property[];
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [propertyFilter, setPropertyFilter] = useState<string>('');
@@ -17,11 +21,8 @@ export const Leads: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Estado para o dropdown customizado de imóveis
   const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
-  
   const [viewProperty, setViewProperty] = useState<Property | null>(null);
-
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
   
@@ -49,13 +50,12 @@ export const Leads: React.FC = () => {
       'Outros'
   ];
 
-  // Função auxiliar para verificar status de interesse específico
   const getInterestStatus = (lead: Lead, propId: string) => {
       const interest = lead.interests?.find(i => i.propertyId === propId);
       return interest?.status || lead.status || LeadStatus.NEW;
   };
 
-  const filteredLeads = (leads as Lead[])
+  const filteredLeads = leads
     .filter(lead => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             lead.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -204,7 +204,7 @@ export const Leads: React.FC = () => {
   };
 
   const getInterestedProperties = (ids: string[]): Property[] => {
-    return (properties as Property[]).filter(p => ids.includes(p.id));
+    return properties.filter(p => ids.includes(p.id));
   };
 
   const formatCurrency = (value: number) => {
@@ -462,7 +462,6 @@ export const Leads: React.FC = () => {
                  <label className="block text-sm font-bold text-slate-800 mb-2">Imóveis e Negociações</label>
                  
                  <div className="flex items-center space-x-2 mb-3 relative">
-                    {/* Custom Dropdown for Property Selection with Images */}
                     <div className="flex-1 relative">
                         <button
                             type="button"
@@ -475,7 +474,7 @@ export const Leads: React.FC = () => {
                         
                         {isPropertyDropdownOpen && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
-                                {(properties as Property[])
+                                {properties
                                     .filter(p => !formData.interestedInPropertyIds?.includes(p.id))
                                     .map(p => (
                                     <div 
@@ -497,15 +496,9 @@ export const Leads: React.FC = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {properties.filter(p => !formData.interestedInPropertyIds?.includes(p.id)).length === 0 && (
-                                    <div className="p-4 text-center text-xs text-slate-400">Nenhum imóvel disponível para adicionar.</div>
-                                )}
                             </div>
                         )}
                     </div>
-                    {isPropertyDropdownOpen && (
-                        <div className="fixed inset-0 z-40" onClick={() => setIsPropertyDropdownOpen(false)}></div>
-                    )}
                  </div>
 
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
