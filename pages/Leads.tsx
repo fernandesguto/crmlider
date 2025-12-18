@@ -1,16 +1,16 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2, ChevronDown } from 'lucide-react';
+import { Phone, Mail, Clock, Search, Plus, Edit, X, Save, Trash2, Filter, MapPin, BedDouble, Bath, Square, MessageCircle, Share2, ChevronDown } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
-  const { leads: rawLeads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties: rawProperties, currentAgency } = useApp();
+  const context = useApp();
+  const { addLead, updateLead, deleteLead, updateLeadInterestStatus, currentAgency } = context;
   
-  // Cast explícito para garantir que o compilador saiba que são arrays dos tipos corretos
-  const leads = (rawLeads as Lead[]) || [];
-  const properties = (rawProperties as Property[]) || [];
+  // Strict typing for context data to avoid 'unknown' inference during build
+  const leads: Lead[] = (context.leads as Lead[]) || [];
+  const properties: Property[] = (context.properties as Property[]) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -50,21 +50,24 @@ export const Leads: React.FC = () => {
       'Outros'
   ];
 
-  const getInterestStatus = (lead: Lead, propId: string) => {
+  const getInterestStatus = (lead: Lead, propId: string): LeadStatus => {
       const interest = lead.interests?.find(i => i.propertyId === propId);
       return interest?.status || lead.status || LeadStatus.NEW;
   };
 
-  const filteredLeads = leads
+  const filteredLeads: Lead[] = leads
     .filter(lead => {
-        const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const leadName = lead.name || '';
+        const leadEmail = lead.email || '';
+        const matchesSearch = leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            leadEmail.toLowerCase().includes(searchTerm.toLowerCase());
         
         const matchesStatus = !statusFilter || 
             (lead.interests?.some(i => i.status === statusFilter)) ||
             (lead.status === statusFilter);
         
-        const matchesProperty = !propertyFilter || lead.interestedInPropertyIds.includes(propertyFilter);
+        const interestedIn = lead.interestedInPropertyIds || [];
+        const matchesProperty = !propertyFilter || interestedIn.includes(propertyFilter);
         const matchesType = !typeFilter || lead.type === typeFilter;
         const matchesSource = !sourceFilter || lead.source === sourceFilter;
 
@@ -77,7 +80,7 @@ export const Leads: React.FC = () => {
         if (aIsNew && !bIsNew) return -1;
         if (!aIsNew && bIsNew) return 1;
 
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
 
   const clearFilters = () => {
@@ -140,7 +143,7 @@ export const Leads: React.FC = () => {
     if (isEditing && formData.id) {
         await updateLead(formData as Lead);
     } else {
-        addLead({
+        await addLead({
             id: Date.now().toString(),
             name: formData.name!,
             email: formData.email || '',
@@ -161,7 +164,8 @@ export const Leads: React.FC = () => {
   const addPropertyInterest = (propertyId: string) => {
       if (!propertyId) return;
       
-      const alreadyHas = formData.interestedInPropertyIds?.includes(propertyId);
+      const interested = formData.interestedInPropertyIds || [];
+      const alreadyHas = interested.includes(propertyId);
       if (!alreadyHas) {
           const newInterests = [...(formData.interests || [])];
           newInterests.push({ propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() });
@@ -177,8 +181,8 @@ export const Leads: React.FC = () => {
   const removePropertyInterest = (propertyId: string) => {
       setFormData(prev => ({
           ...prev,
-          interestedInPropertyIds: prev.interestedInPropertyIds?.filter(id => id !== propertyId),
-          interests: prev.interests?.filter(i => i.propertyId !== propertyId)
+          interestedInPropertyIds: (prev.interestedInPropertyIds || []).filter(id => id !== propertyId),
+          interests: (prev.interests || []).filter(i => i.propertyId !== propertyId)
       }));
   };
 
@@ -287,7 +291,8 @@ export const Leads: React.FC = () => {
 
       <div className="space-y-4">
         {filteredLeads.map((lead: Lead) => {
-          const hasInterests = lead.interestedInPropertyIds && lead.interestedInPropertyIds.length > 0;
+          const interestedIn = lead.interestedInPropertyIds || [];
+          const hasInterests = interestedIn.length > 0;
           const isNewLead = lead.status === LeadStatus.NEW && !hasInterests;
           
           return (
@@ -317,14 +322,14 @@ export const Leads: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-sm text-slate-500 mb-3">
                         <div className="flex items-center space-x-1 truncate"><Mail size={14} className="flex-shrink-0" /> <span className="truncate">{lead.email || 'Sem email'}</span></div>
                         <div className="flex items-center space-x-1"><Phone size={14} className="flex-shrink-0" /> <span>{lead.phone || 'Sem fone'}</span></div>
-                        <div className="flex items-center space-x-1"><Clock size={14} className="flex-shrink-0" /> <span>{new Date(lead.createdAt).toLocaleDateString()}</span></div>
+                        <div className="flex items-center space-x-1"><Clock size={14} className="flex-shrink-0" /> <span>{new Date(lead.createdAt || 0).toLocaleDateString()}</span></div>
                     </div>
                     
-                    {lead.interestedInPropertyIds.length > 0 && (
+                    {interestedIn.length > 0 && (
                         <div className="mt-4">
                             <span className="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-wider">Interesses e Negociações</span>
                             <div className="flex flex-wrap gap-2">
-                                {getInterestedProperties(lead.interestedInPropertyIds).map((p: Property) => {
+                                {getInterestedProperties(interestedIn).map((p: Property) => {
                                     const status = getInterestStatus(lead, p.id);
                                     return (
                                         <div 
@@ -400,7 +405,7 @@ export const Leads: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
                     <input 
                         required 
-                        value={formData.name} 
+                        value={formData.name || ''} 
                         onChange={e => setFormData({...formData, name: e.target.value})} 
                         className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" 
                         placeholder="Nome do cliente"
@@ -410,7 +415,7 @@ export const Leads: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Email <span className="text-slate-400 font-normal text-xs">(Opcional)</span></label>
                     <input 
                         type="email"
-                        value={formData.email} 
+                        value={formData.email || ''} 
                         onChange={e => setFormData({...formData, email: e.target.value})} 
                         className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="cliente@email.com" 
@@ -419,7 +424,7 @@ export const Leads: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
                     <input 
-                        value={formData.phone} 
+                        value={formData.phone || ''} 
                         onChange={e => {
                             let val = e.target.value
                                 .replace(/\D/g, '')
@@ -435,7 +440,7 @@ export const Leads: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Cliente</label>
                     <select 
-                        value={formData.type} 
+                        value={formData.type || 'Buyer'} 
                         onChange={e => setFormData({...formData, type: e.target.value as any})} 
                         className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -446,7 +451,7 @@ export const Leads: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Origem do Lead</label>
                     <select 
-                        value={formData.source} 
+                        value={formData.source || ''} 
                         onChange={e => setFormData({...formData, source: e.target.value})} 
                         className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -475,7 +480,7 @@ export const Leads: React.FC = () => {
                         {isPropertyDropdownOpen && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
                                 {properties
-                                    .filter(p => !formData.interestedInPropertyIds?.includes(p.id))
+                                    .filter(p => !(formData.interestedInPropertyIds || []).includes(p.id))
                                     .map(p => (
                                     <div 
                                         key={p.id} 
@@ -483,7 +488,7 @@ export const Leads: React.FC = () => {
                                             addPropertyInterest(p.id);
                                             setIsPropertyDropdownOpen(false);
                                         }}
-                                        className="flex items-center gap-3 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition group"
+                                        className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition group"
                                     >
                                         <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
                                             <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
@@ -491,7 +496,7 @@ export const Leads: React.FC = () => {
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-sm font-bold text-slate-700 truncate group-hover:text-blue-600 transition">{p.title}</span>
                                             <span className="text-xs text-slate-500 font-mono">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(p.price)}
+                                                {formatCurrency(p.price || 0)}
                                             </span>
                                         </div>
                                     </div>
@@ -504,7 +509,7 @@ export const Leads: React.FC = () => {
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
                      <div className="space-y-2">
                          {getInterestedProperties(formData.interestedInPropertyIds).map((p: Property) => {
-                             const interest = formData.interests?.find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
+                             const interest = (formData.interests || []).find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
                              
                              return (
                                  <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center justify-between shadow-sm">
@@ -543,7 +548,7 @@ export const Leads: React.FC = () => {
                   <label className="block text-sm font-bold text-slate-800 mb-2">Observações Internas</label>
                   <textarea 
                     rows={4}
-                    value={formData.notes}
+                    value={formData.notes || ''}
                     onChange={e => setFormData({...formData, notes: e.target.value})}
                     className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
                     placeholder="Escreva detalhes sobre o perfil do cliente, horários de visita, preferências..."
@@ -597,7 +602,7 @@ export const Leads: React.FC = () => {
                           <span className="flex items-center"><Square size={16} className="mr-1 text-blue-500"/> {viewProperty.area}m²</span>
                       </div>
 
-                      <p className="text-2xl font-bold text-blue-600 mb-4">{formatCurrency(viewProperty.price)}</p>
+                      <p className="text-2xl font-bold text-blue-600 mb-4">{formatCurrency(viewProperty.price || 0)}</p>
                       
                       <div className="flex justify-end">
                           <button onClick={() => setViewProperty(null)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-medium transition">
