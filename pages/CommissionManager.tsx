@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Property, CommissionSplit } from '../types';
@@ -6,19 +5,24 @@ import { PieChart, DollarSign, Search, AlertCircle, Plus, Trash2, X, Save, User 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 export const CommissionManager: React.FC = () => {
-    const { properties, users, updateProperty, currentAgency } = useApp();
+    const context = useApp();
+    const { updateProperty, currentAgency } = context;
+    
+    // Strict typing to avoid 'unknown' inference
+    const properties: Property[] = (context.properties as Property[]) || [];
+    const users = context.users || [];
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [splits, setSplits] = useState<CommissionSplit[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     
     // Filtra imóveis vendidos com comissão > 0
-    // REMOVIDO: Locações (pois ficam 100% com imobiliária)
     const soldProperties = properties.filter(p => 
         p.status === 'Sold' && 
         (p.commissionValue || 0) > 0 &&
         !p.type.includes('Locação') &&
-        p.title.toLowerCase().includes(searchTerm.toLowerCase())
+        (p.title || '').toLowerCase().includes(searchTerm.toLowerCase())
     ).sort((a, b) => new Date(b.soldAt || '').getTime() - new Date(a.soldAt || '').getTime());
 
     // --- LÓGICA DOS GRÁFICOS ---
@@ -74,7 +78,6 @@ export const CommissionManager: React.FC = () => {
         }
         return null;
     };
-    // ----------------------------
 
     // Abre o modal e inicializa o split se não existir
     const handleOpenDistribution = (property: Property) => {
@@ -84,7 +87,6 @@ export const CommissionManager: React.FC = () => {
         if (property.commissionDistribution && property.commissionDistribution.length > 0) {
             setSplits([...property.commissionDistribution]);
         } else {
-            // Inicializa: 50% Agência e 50% Captador (ou 100% Agência se não tiver captador)
             const initialSplits: CommissionSplit[] = [];
             const commission = property.commissionValue || 0;
             const broker = users.find(u => u.id === property.brokerId);
@@ -136,7 +138,6 @@ export const CommissionManager: React.FC = () => {
         const user = users.find(u => u.id === userId);
         if (!user) return;
 
-        // Verifica se já está na lista
         if (splits.some(s => s.beneficiaryId === userId)) {
             alert("Este corretor já está na lista de rateio.");
             return;
@@ -161,7 +162,6 @@ export const CommissionManager: React.FC = () => {
         
         const totalPercent = splits.reduce((acc, curr) => acc + curr.percentage, 0);
         
-        // Validação com margem de erro pequena para ponto flutuante
         if (Math.abs(totalPercent - 100) > 0.5) {
             alert(`A soma das porcentagens deve ser 100%.\n\nSoma atual: ${totalPercent.toFixed(1)}%`);
             return;
@@ -170,7 +170,6 @@ export const CommissionManager: React.FC = () => {
         setIsSaving(true);
 
         try {
-            // Garante que os números estão limpos antes de salvar
             const cleanSplits = splits.map(s => ({
                 ...s,
                 percentage: Number(s.percentage.toFixed(2)),
@@ -182,7 +181,6 @@ export const CommissionManager: React.FC = () => {
                 commissionDistribution: cleanSplits
             });
             
-            // Sucesso
             setSelectedProperty(null);
             alert("Rateio de comissão salvo com sucesso!");
         } catch (e: any) {
@@ -208,7 +206,6 @@ export const CommissionManager: React.FC = () => {
                 <p className="text-slate-500">Distribua as comissões de vendas entre a imobiliária e os corretores.</p>
             </div>
 
-            {/* GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
@@ -259,10 +256,7 @@ export const CommissionManager: React.FC = () => {
             <div className="grid grid-cols-1 gap-4">
                 {soldProperties.map(property => {
                     const isDistributed = property.commissionDistribution && property.commissionDistribution.length > 0;
-                    
-                    // Cálculos de distribuição
                     const agencyTotal = property.commissionDistribution?.reduce((acc, item) => item.beneficiaryType === 'Agency' ? acc + item.value : acc, 0) || 0;
-                    // Corretores individuais
                     const brokers = property.commissionDistribution?.filter(s => s.beneficiaryType === 'Broker') || [];
 
                     return (
@@ -273,7 +267,7 @@ export const CommissionManager: React.FC = () => {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 text-lg">{property.title}</h3>
-                                    <p className="text-sm text-slate-500 font-mono">#{property.code} • Vendido em {new Date(property.soldAt!).toLocaleDateString()}</p>
+                                    <p className="text-sm text-slate-500 font-mono">#{property.code} • Vendido em {property.soldAt ? new Date(property.soldAt).toLocaleDateString() : '-'}</p>
                                 </div>
                             </div>
 
@@ -314,14 +308,8 @@ export const CommissionManager: React.FC = () => {
                         </div>
                     );
                 })}
-                {soldProperties.length === 0 && (
-                    <div className="text-center py-12 text-slate-400">
-                        Nenhuma venda com comissão encontrada.
-                    </div>
-                )}
             </div>
 
-            {/* MODAL DE DISTRIBUIÇÃO */}
             {selectedProperty && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
