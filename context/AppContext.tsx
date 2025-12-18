@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult, FinancialRecord, LeadInterest, AiMatchOpportunity, AiRecoveryOpportunity } from '../types.ts';
-import * as DB from '../services/db.ts';
+import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult, FinancialRecord, LeadInterest, AiMatchOpportunity, AiRecoveryOpportunity } from '../types';
+import * as DB from '../services/db';
 
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
@@ -167,21 +167,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
         };
         loadData();
-    }, [currentUser, currentAgency]);
-
-    useEffect(() => {
-        if (!currentUser || !currentAgency) return;
-        const interval = setInterval(async () => {
-            try {
-                const latestLeads = await DB.getAll<Lead>('leads', { column: 'agencyId', value: currentAgency.id });
-                if (latestLeads.length > leadsRef.current.length) {
-                    const newLead = latestLeads[0];
-                    setNotificationLead(newLead);
-                    setLeads(latestLeads);
-                }
-            } catch (e) {}
-        }, 60000); 
-        return () => clearInterval(interval);
     }, [currentUser, currentAgency]);
 
     const login = async (email: string, password: string): Promise<OperationResult> => {
