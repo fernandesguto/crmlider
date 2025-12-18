@@ -6,11 +6,11 @@ import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, F
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
-  const { leads: contextLeads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties: contextProperties, currentAgency } = useApp();
+  const { leads: rawLeads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties: rawProperties, currentAgency } = useApp();
   
-  // Cast explícito para evitar erro de 'unknown' caso o compilador perca a referência do tipo importado
-  const leads = contextLeads as Lead[];
-  const properties = contextProperties as Property[];
+  // Cast explícito para garantir que o compilador saiba que são arrays dos tipos corretos
+  const leads = (rawLeads as Lead[]) || [];
+  const properties = (rawProperties as Property[]) || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
