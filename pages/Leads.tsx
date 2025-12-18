@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { Lead, LeadStatus, Property } from '../types';
+import { useApp } from '../context/AppContext.tsx';
+import { Lead, LeadStatus, Property } from '../types.ts';
 import { Phone, Mail, Clock, Home, Search, Plus, Edit, X, Save, Trash2, Globe, Filter, MapPin, BedDouble, Bath, Square, Eye, MessageCircle, AlertCircle, Share2, ChevronDown } from 'lucide-react';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/ConfirmModal.tsx';
 
 export const Leads: React.FC = () => {
   const { leads, addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead, properties, currentAgency } = useApp();
@@ -55,7 +55,7 @@ export const Leads: React.FC = () => {
       return interest?.status || lead.status || LeadStatus.NEW;
   };
 
-  const filteredLeads = leads
+  const filteredLeads = (leads as Lead[])
     .filter(lead => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             lead.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -203,8 +203,8 @@ export const Leads: React.FC = () => {
       setFormData(prev => ({ ...prev, interests: currentInterests }));
   };
 
-  const getInterestedProperties = (ids: string[]) => {
-    return properties.filter(p => ids.includes(p.id));
+  const getInterestedProperties = (ids: string[]): Property[] => {
+    return (properties as Property[]).filter(p => ids.includes(p.id));
   };
 
   const formatCurrency = (value: number) => {
@@ -286,7 +286,7 @@ export const Leads: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        {filteredLeads.map(lead => {
+        {filteredLeads.map((lead: Lead) => {
           const hasInterests = lead.interestedInPropertyIds && lead.interestedInPropertyIds.length > 0;
           const isNewLead = lead.status === LeadStatus.NEW && !hasInterests;
           
@@ -324,7 +324,7 @@ export const Leads: React.FC = () => {
                         <div className="mt-4">
                             <span className="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-wider">Interesses e Negociações</span>
                             <div className="flex flex-wrap gap-2">
-                                {getInterestedProperties(lead.interestedInPropertyIds).map(p => {
+                                {getInterestedProperties(lead.interestedInPropertyIds).map((p: Property) => {
                                     const status = getInterestStatus(lead, p.id);
                                     return (
                                         <div 
@@ -475,7 +475,7 @@ export const Leads: React.FC = () => {
                         
                         {isPropertyDropdownOpen && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
-                                {properties
+                                {(properties as Property[])
                                     .filter(p => !formData.interestedInPropertyIds?.includes(p.id))
                                     .map(p => (
                                     <div 
@@ -510,7 +510,7 @@ export const Leads: React.FC = () => {
 
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
                      <div className="space-y-2">
-                         {getInterestedProperties(formData.interestedInPropertyIds).map(p => {
+                         {getInterestedProperties(formData.interestedInPropertyIds).map((p: Property) => {
                              const interest = formData.interests?.find(i => i.propertyId === p.id) || { status: LeadStatus.NEW };
                              
                              return (
