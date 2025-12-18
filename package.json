@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "rm -rf build && tsc && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -27,9 +27,5 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.2.2",
     "vite": "^5.1.4"
-  },
-  "overrides": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
   }
 }
