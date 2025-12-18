@@ -7,7 +7,6 @@ import { PropertyType, LeadStatus, Lead, Property, Task, User as UserType } from
 
 const StatCard = ({ icon: Icon, label, value, subtext, color }: any) => {
   // Ajuste para garantir contraste correto: Fundo sempre tom 100, Ícone mantém a cor original definida no widget
-  // Substitui a lógica de bg-opacity que estava causando ícones invisíveis (fundo sólido)
   const bgClass = color.replace(/-\d+/, '-100'); 
   const textClass = color.replace('bg-', 'text-');
 
@@ -65,7 +64,6 @@ const SimpleCalendar = ({ tasks, leads, properties, users, onToggleTask }: Simpl
 
     const renderDays = () => {
         const days = [];
-        // Empty slots for days before start of month
         for (let i = 0; i < firstDayOfMonth; i++) {
             days.push(<div key={`empty-${i}`} className="h-8 md:h-9"></div>);
         }
@@ -73,7 +71,6 @@ const SimpleCalendar = ({ tasks, leads, properties, users, onToggleTask }: Simpl
         const today = new Date();
         const isCurrentMonth = today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
 
-        // Days
         for (let i = 1; i <= daysInMonth; i++) {
             const dayTasks = getTasksForDay(i);
             const hasTasks = dayTasks.length > 0;
@@ -115,7 +112,6 @@ const SimpleCalendar = ({ tasks, leads, properties, users, onToggleTask }: Simpl
                 {renderDays()}
             </div>
 
-            {/* POPUP DE TAREFAS COMPLETO */}
             {selectedDayData && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center p-2">
                     <div className="absolute inset-0 bg-white/90 backdrop-blur-[2px] rounded-xl" onClick={() => setSelectedDayData(null)}></div>
@@ -221,51 +217,35 @@ export const Dashboard: React.FC = () => {
           const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' });
           const startMonth = refDate;
-          const endMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59); // Final do mês
+          const endMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59);
           
           let vendasMes = 0;
           let locacoesMes = 0;
           
-          // 1. Processar Imóveis Ativos e Vendidos Atualmente
           properties.forEach(p => {
               if (p.status !== 'Sold' || !p.soldAt) return;
               const soldDate = new Date(p.soldAt);
               const commission = p.commissionValue || 0;
               
               if (p.type.includes('Locação')) {
-                  // Locação conta se começou antes do fim deste mês
-                  if (soldDate <= endMonth) {
-                      locacoesMes += commission;
-                  }
+                  if (soldDate <= endMonth) locacoesMes += commission;
               } else {
-                  // Venda conta apenas se ocorreu neste mês específico
-                  if (soldDate >= startMonth && soldDate <= endMonth) {
-                      vendasMes += commission;
-                  }
+                  if (soldDate >= startMonth && soldDate <= endMonth) vendasMes += commission;
               }
           });
 
-          // 2. Processar Histórico Financeiro (Contratos Encerrados ou Valores Antigos)
           if (financialRecords) {
               financialRecords.forEach(rec => {
                   const recDate = new Date(rec.date);
                   const commission = rec.commission || 0;
-
                   if (rec.type === 'Rental') {
                       const recEndDate = rec.endDate ? new Date(rec.endDate) : null;
-                      // Conta apenas se começou antes do fim do mês E (não terminou ou terminou DEPOIS do início do mês)
-                      // Ajuste: usar > startMonth para evitar contar no mês exato da troca se a troca for no dia 1
-                      if (recDate <= endMonth && (!recEndDate || recEndDate > startMonth)) {
-                          locacoesMes += commission;
-                      }
+                      if (recDate <= endMonth && (!recEndDate || recEndDate > startMonth)) locacoesMes += commission;
                   } else {
-                      if (recDate >= startMonth && recDate <= endMonth) {
-                          vendasMes += commission;
-                      }
+                      if (recDate >= startMonth && recDate <= endMonth) vendasMes += commission;
                   }
               });
           }
-
           data.push({ name: monthKey, Vendas: vendasMes, Locacao: locacoesMes });
       }
       return data;
@@ -275,30 +255,23 @@ export const Dashboard: React.FC = () => {
       const months = 6;
       const data = [];
       const now = new Date();
-
       for (let i = months - 1; i >= 0; i--) {
         const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' });
         const nextMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
-
         let agencyTotal = 0;
         let brokerTotal = 0;
-
         properties.forEach(p => {
             if (p.status === 'Sold' && p.soldAt && p.commissionDistribution) {
                 const soldDate = new Date(p.soldAt);
                 if (soldDate >= refDate && soldDate < nextMonth) {
                     p.commissionDistribution.forEach(split => {
-                        if (split.beneficiaryType === 'Agency') {
-                            agencyTotal += split.value;
-                        } else {
-                            brokerTotal += split.value;
-                        }
+                        if (split.beneficiaryType === 'Agency') agencyTotal += split.value;
+                        else brokerTotal += split.value;
                     });
                 }
             }
         });
-
         data.push({ name: monthKey, Imobiliária: agencyTotal, Corretores: brokerTotal });
       }
       return data;
@@ -313,27 +286,19 @@ export const Dashboard: React.FC = () => {
           const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' });
           const nextMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
           let vgvMes = 0;
-          
-          // Current Properties
           properties.forEach(p => {
               if (p.status !== 'Sold' || !p.soldAt) return;
               if (p.type.includes('Locação')) return;
               const soldDate = new Date(p.soldAt);
-              const price = p.salePrice || 0;
-              if (soldDate >= refDate && soldDate < nextMonth) vgvMes += price;
+              if (soldDate >= refDate && soldDate < nextMonth) vgvMes += (p.salePrice || 0);
           });
-
-          // Historical Sales
           if (financialRecords) {
               financialRecords.forEach(rec => {
                   if (rec.type !== 'Sale') return;
                   const recDate = new Date(rec.date);
-                  if (recDate >= refDate && recDate < nextMonth) {
-                      vgvMes += (rec.value || 0);
-                  }
+                  if (recDate >= refDate && recDate < nextMonth) vgvMes += (rec.value || 0);
               });
           }
-
           data.push({ name: monthKey, Valor: vgvMes });
       }
       return data;
@@ -347,12 +312,10 @@ export const Dashboard: React.FC = () => {
           const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' });
           const nextMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
-          
           const count = leads.filter(l => {
               const d = new Date(l.createdAt);
               return d >= refDate && d < nextMonth;
           }).length;
-
           data.push({ name: monthKey, Leads: count });
       }
       return data;
@@ -364,7 +327,6 @@ export const Dashboard: React.FC = () => {
           const src = l.source || 'Não informado';
           counts[src] = (counts[src] || 0) + 1;
       });
-      // Converter para array de objetos e ordenar
       return Object.entries(counts)
           .map(([name, value]) => ({ name, value }))
           .sort((a, b) => b.value - a.value);
@@ -389,29 +351,19 @@ export const Dashboard: React.FC = () => {
   const splitData = getCommissionSplitData();
   const leadsSourceData = getLeadsBySource();
 
-  // Cores vibrantes para o gráfico de pizza (Fontes de Lead)
   const SOURCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1'];
 
   const getTopBrokers = () => {
       const brokerStats: Record<string, number> = {};
-      
-      // Current Sales
       soldProperties.forEach(p => { 
           const actualSellerId = p.soldByUserId || p.brokerId;
-          if (actualSellerId) {
-              brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.salePrice || 0);
-          }
+          if (actualSellerId) brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.salePrice || 0);
       });
-
-      // Historical Sales
       if (financialRecords) {
         financialRecords.forEach(rec => {
-            if (rec.type === 'Sale' && rec.brokerId) {
-                brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.value || 0);
-            }
+            if (rec.type === 'Sale' && rec.brokerId) brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.value || 0);
         });
       }
-
       return Object.entries(brokerStats)
           .map(([brokerId, value]) => {
               const broker = users.find(u => u.id === brokerId);
@@ -423,35 +375,21 @@ export const Dashboard: React.FC = () => {
 
   const getBrokerCommissions = () => {
       const brokerStats: Record<string, number> = {};
-      
-      // 1. Process Current Properties (Check for Splits first)
       soldProperties.forEach(p => { 
-          // Check if there is a specific distribution saved (split)
           if (p.commissionDistribution && p.commissionDistribution.length > 0) {
               p.commissionDistribution.forEach(split => {
-                  // Only count for Brokers, ignore Agency share for this chart
-                  if (split.beneficiaryType === 'Broker') {
-                      brokerStats[split.beneficiaryId] = (brokerStats[split.beneficiaryId] || 0) + (split.value || 0);
-                  }
+                  if (split.beneficiaryType === 'Broker') brokerStats[split.beneficiaryId] = (brokerStats[split.beneficiaryId] || 0) + (split.value || 0);
               });
           } else {
-              // Fallback: No split defined, attribute 100% to the seller (or listing broker)
               const actualSellerId = p.soldByUserId || p.brokerId;
-              if (actualSellerId) {
-                  brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.commissionValue || 0);
-              }
+              if (actualSellerId) brokerStats[actualSellerId] = (brokerStats[actualSellerId] || 0) + (p.commissionValue || 0);
           }
       });
-
-      // 2. Process Historical Records (Kept simple as legacy records don't have split array yet)
       if (financialRecords) {
         financialRecords.forEach(rec => {
-            if (rec.brokerId) {
-                brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.commission || 0);
-            }
+            if (rec.brokerId) brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.commission || 0);
         });
       }
-
       return Object.entries(brokerStats)
           .map(([brokerId, value]) => {
               const broker = users.find(u => u.id === brokerId);
@@ -469,16 +407,13 @@ export const Dashboard: React.FC = () => {
     .filter(t => !t.completed)
     .filter(t => { 
         const tDate = getSafeDate(t.dueDate); 
-        if (taskFilter === 'week') {
-            return tDate <= nextWeek; 
-        }
+        if (taskFilter === 'week') return tDate <= nextWeek; 
         return true; 
     })
     .sort((a, b) => getSafeDate(a.dueDate).getTime() - getSafeDate(b.dueDate).getTime());
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const currencyFormatter = (val: number) => val >= 1000000 ? `R$ ${(val/1000000).toFixed(1)}M` : val >= 1000 ? `R$ ${(val/1000).toFixed(0)}k` : `R$ ${val}`;
-  const RADIAN = Math.PI / 180;
   
   const WIDGETS = [
       { id: 'kpi_tasks', label: 'Lista de Tarefas da Semana', type: 'full', default: true },
@@ -505,23 +440,16 @@ export const Dashboard: React.FC = () => {
       const saved = localStorage.getItem('imob_dashboard_widgets');
       if (saved) {
           const parsed = JSON.parse(saved);
-          // Migração: Se o novo gráfico 'chart_sources' não estiver na lista salva, adicione-o.
           if (!parsed.includes('chart_sources')) {
               const updated = [...parsed, 'chart_sources'];
               setActiveWidgetIds(updated);
               localStorage.setItem('imob_dashboard_widgets', JSON.stringify(updated));
-          } else {
-              setActiveWidgetIds(parsed);
-          }
-      } else {
-          setActiveWidgetIds(WIDGETS.filter(w => w.default).map(w => w.id));
-      }
+          } else setActiveWidgetIds(parsed);
+      } else setActiveWidgetIds(WIDGETS.filter(w => w.default).map(w => w.id));
   }, []);
 
   const toggleWidget = (id: string) => {
-      const newIds = activeWidgetIds.includes(id) 
-          ? activeWidgetIds.filter(wid => wid !== id)
-          : [...activeWidgetIds, id];
+      const newIds = activeWidgetIds.includes(id) ? activeWidgetIds.filter(wid => wid !== id) : [...activeWidgetIds, id];
       setActiveWidgetIds(newIds);
       localStorage.setItem('imob_dashboard_widgets', JSON.stringify(newIds));
   };
@@ -536,23 +464,11 @@ export const Dashboard: React.FC = () => {
                 {taskFilter === 'week' ? 'Tarefas da Semana' : 'Todas as Tarefas Futuras'}
                 <span className="ml-3 text-[10px] md:text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{visibleTasks.length} pendentes</span>
             </h3>
-            
             <div className="flex bg-slate-100 p-1 rounded-lg">
-                <button 
-                    onClick={() => setTaskFilter('week')}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition ${taskFilter === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Esta Semana
-                </button>
-                <button 
-                    onClick={() => setTaskFilter('all')}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition ${taskFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Todas
-                </button>
+                <button onClick={() => setTaskFilter('week')} className={`px-3 py-1 text-xs font-bold rounded-md transition ${taskFilter === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Esta Semana</button>
+                <button onClick={() => setTaskFilter('all')} className={`px-3 py-1 text-xs font-bold rounded-md transition ${taskFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Todas</button>
             </div>
         </div>
-
         <div className="space-y-2">
         {visibleTasks.slice(0, 5).map(task => { 
             const taskDate = getSafeDate(task.dueDate);
@@ -560,7 +476,6 @@ export const Dashboard: React.FC = () => {
             const linkedLead = leads.find(l => l.id === task.leadId);
             const linkedProp = properties.find(p => p.id === task.propertyId);
             const assignedUser = users.find(u => u.id === task.assignedTo);
-
             return (
                 <div key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 transition hover:bg-white hover:shadow-md">
                 <div className="flex items-start sm:items-center space-x-3 w-full min-w-0">
@@ -569,23 +484,9 @@ export const Dashboard: React.FC = () => {
                         <span className="text-slate-700 font-medium break-words text-sm md:text-base min-w-0">{task.title}</span>
                         <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
                             <span className={`text-[10px] md:text-xs flex items-center flex-shrink-0 ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>{isOverdue && <AlertTriangle size={10} className="mr-1" />}{taskDate.toLocaleDateString('pt-BR')} • {taskDate.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
-                            
-                            {assignedUser && (
-                                <div className="flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200" title={`Responsável: ${assignedUser.name}`}>
-                                    <img src={assignedUser.avatarUrl} className="w-4 h-4 rounded-full" />
-                                    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[80px]">{assignedUser.name}</span>
-                                </div>
-                            )}
-
-                            {linkedLead && (
-                                <button onClick={() => setViewLead(linkedLead)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 flex items-center hover:bg-blue-100 max-w-[120px] truncate"><User size={10} className="mr-1"/>{linkedLead.name}</button>
-                            )}
-                            {linkedProp && (
-                                <button onClick={() => setViewProperty(linkedProp)} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 flex items-center hover:bg-purple-100 max-w-[200px] truncate" title={linkedProp.title}>
-                                    <Building2 size={10} className="mr-1 flex-shrink-0"/>
-                                    <span className="truncate">#{linkedProp.code} {linkedProp.title}</span>
-                                </button>
-                            )}
+                            {assignedUser && <div className="flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200" title={`Responsável: ${assignedUser.name}`}><img src={assignedUser.avatarUrl} className="w-4 h-4 rounded-full" /><span className="text-[10px] font-bold text-slate-600 truncate max-w-[80px]">{assignedUser.name}</span></div>}
+                            {linkedLead && <button onClick={() => setViewLead(linkedLead)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 flex items-center hover:bg-blue-100 max-w-[120px] truncate"><User size={10} className="mr-1"/>{linkedLead.name}</button>}
+                            {linkedProp && <button onClick={() => setViewProperty(linkedProp)} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 flex items-center hover:bg-purple-100 max-w-[200px] truncate" title={linkedProp.title}><Building2 size={10} className="mr-1 flex-shrink-0"/><span className="truncate">#{linkedProp.code} {linkedProp.title}</span></button>}
                         </div>
                     </div>
                 </div>
@@ -600,35 +501,16 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
       <div className="flex justify-between items-center mb-8">
-        <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Dashboard</h1>
-            <p className="text-slate-500 text-sm md:text-base">Visão geral da sua imobiliária</p>
-        </div>
-        <button 
-            onClick={() => setShowConfig(!showConfig)} 
-            className={`p-2 rounded-lg transition ${showConfig ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 shadow-sm border border-slate-200'}`}
-            title="Personalizar Dashboard"
-        >
-            <Settings2 size={20} />
-        </button>
+        <div><h1 className="text-2xl md:text-3xl font-bold text-slate-800">Dashboard</h1><p className="text-slate-500 text-sm md:text-base">Visão geral da sua imobiliária</p></div>
+        <button onClick={() => setShowConfig(!showConfig)} className={`p-2 rounded-lg transition ${showConfig ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 shadow-sm border border-slate-200'}`} title="Personalizar Dashboard"><Settings2 size={20} /></button>
       </div>
 
       {showConfig && (
           <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mb-8 animate-in slide-in-from-top duration-300">
-              <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-800 flex items-center"><Layout className="mr-2" size={20}/> Personalizar Widgets</h3>
-                  <button onClick={() => setShowConfig(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
-              </div>
+              <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800 flex items-center"><Layout className="mr-2" size={20}/> Personalizar Widgets</h3><button onClick={() => setShowConfig(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button></div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {WIDGETS.map(widget => (
-                      <button 
-                        key={widget.id}
-                        onClick={() => toggleWidget(widget.id)}
-                        className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-between transition ${isActive(widget.id) ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                      >
-                          <span>{widget.label}</span>
-                          {isActive(widget.id) && <CheckCircle size={16} className="text-blue-600" />}
-                      </button>
+                      <button key={widget.id} onClick={() => toggleWidget(widget.id)} className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-between transition ${isActive(widget.id) ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}><span>{widget.label}</span>{isActive(widget.id) && <CheckCircle size={16} className="text-blue-600" />}</button>
                   ))}
               </div>
           </div>
@@ -638,9 +520,7 @@ export const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
           {WIDGETS.filter(w => w.type === 'kpi' && isActive(w.id)).map(w => (
-              <div key={w.id} className="animate-in fade-in zoom-in duration-300">
-                  {w.component}
-              </div>
+              <div key={w.id} className="animate-in fade-in zoom-in duration-300">{w.component}</div>
           ))}
       </div>
 
@@ -655,7 +535,7 @@ export const Dashboard: React.FC = () => {
                         <YAxis tickFormatter={currencyFormatter} />
                         <Tooltip formatter={(val: number) => formatCurrency(val)} />
                         <Bar dataKey="Valor" fill="#10b981" radius={[4, 4, 0, 0]} barSize={50}>
-                             <LabelList dataKey="Valor" position="top" formatter={currencyFormatter} fill="#10b981" fontSize={11} fontWeight="bold" />
+                             <LabelList dataKey="Valor" position="top" formatter={currencyFormatter} fill="#10b981" fontSize={11} fontStyle="bold" />
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>
@@ -665,13 +545,7 @@ export const Dashboard: React.FC = () => {
           {isActive('widget_calendar') && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-auto min-h-[22rem]">
                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><Calendar className="mr-2 text-blue-500" size={20}/> Calendário</h3>
-                <SimpleCalendar 
-                    tasks={tasks} 
-                    onToggleTask={toggleTaskCompletion} 
-                    leads={leads}
-                    properties={properties}
-                    users={users}
-                />
+                <SimpleCalendar tasks={tasks} onToggleTask={toggleTaskCompletion} leads={leads} properties={properties} users={users} />
             </div>
           )}
 
@@ -696,14 +570,18 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><PieChartIcon className="mr-2 text-purple-600" size={20}/> Distribuição de Comissões</h3>
                 <ResponsiveContainer width="100%" height="85%">
-                    <BarChart data={splitData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <BarChart data={splitData} margin={{ top: 30, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                         <YAxis tickFormatter={(val) => `R$${val/1000}k`} />
                         <Tooltip formatter={(val: number) => formatCurrency(val)} cursor={{fill: 'transparent'}} />
                         <Legend />
-                        <Bar dataKey="Imobiliária" stackId="a" fill="#8b5cf6" barSize={40} />
-                        <Bar dataKey="Corretores" stackId="a" fill="#3b82f6" barSize={40} />
+                        <Bar dataKey="Imobiliária" stackId="a" fill="#8b5cf6" barSize={40}>
+                            <LabelList dataKey="Imobiliária" position="center" formatter={currencyFormatter} fill="#fff" fontSize={10} fontWeight="bold" />
+                        </Bar>
+                        <Bar dataKey="Corretores" stackId="a" fill="#3b82f6" barSize={40}>
+                            <LabelList dataKey="Corretores" position="top" formatter={currencyFormatter} fill="#3b82f6" fontSize={11} fontWeight="bold" />
+                        </Bar>
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -711,9 +589,7 @@ export const Dashboard: React.FC = () => {
 
           {isActive('chart_leads_growth') && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
-                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                    <UserPlus className="mr-2 text-cyan-600" size={20}/> Novos Leads por Mês
-                </h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><UserPlus className="mr-2 text-cyan-600" size={20}/> Novos Leads por Mês</h3>
                 <ResponsiveContainer width="100%" height="85%">
                     <BarChart data={leadsGrowthData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -740,12 +616,12 @@ export const Dashboard: React.FC = () => {
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
-                            outerRadius={80}
-                            fill="#8884d8"
+                            outerRadius={85}
                             paddingAngle={5}
+                            label={({ name, value }) => `${value}`}
                         >
                             {leadsSourceData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} />
+                                <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} strokeWidth={2} />
                             ))}
                         </Pie>
                         <Tooltip />
@@ -766,11 +642,9 @@ export const Dashboard: React.FC = () => {
                         <Tooltip />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
                             <LabelList dataKey="value" position="right" fill="#64748b" fontSize={12} fontWeight="bold" />
-                            {
-                                funnelData.map((entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                ))
-                            }
+                            {funnelData.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>
@@ -792,11 +666,7 @@ export const Dashboard: React.FC = () => {
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                 ) : (
-                     <div className="h-full flex items-center justify-center text-slate-400 text-sm pb-10">
-                         Nenhuma comissão registrada.
-                     </div>
-                 )}
+                 ) : <div className="h-full flex items-center justify-center text-slate-400 text-sm pb-10">Nenhuma comissão registrada.</div>}
             </div>
           )}
 
@@ -807,13 +677,8 @@ export const Dashboard: React.FC = () => {
                     {topBrokers.map((broker, idx) => (
                         <div key={idx} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700'}`}>
-                                    {idx + 1}
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <img src={broker.avatar || `https://ui-avatars.com/api/?name=${broker.name}`} className="w-8 h-8 rounded-full border border-slate-100" />
-                                    <span className="text-sm font-medium text-slate-700">{broker.name}</span>
-                                </div>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700'}`}>{idx + 1}</div>
+                                <div className="flex items-center space-x-2"><img src={broker.avatar || `https://ui-avatars.com/api/?name=${broker.name}`} className="w-8 h-8 rounded-full border border-slate-100" /><span className="text-sm font-medium text-slate-700">{broker.name}</span></div>
                             </div>
                             <span className="text-sm font-bold text-blue-600">{formatCurrency(broker.value)}</span>
                         </div>
@@ -824,7 +689,6 @@ export const Dashboard: React.FC = () => {
           )}
       </div>
 
-       {/* Modal Quick View Lead */}
       {viewLead && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 p-6 relative">
@@ -842,23 +706,14 @@ export const Dashboard: React.FC = () => {
           </div>
       )}
 
-      {/* Modal Quick View Property */}
       {viewProperty && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="relative h-56 bg-slate-200">
-                      <img src={viewProperty.images?.[0] || 'https://via.placeholder.com/600'} alt={viewProperty.title} className="w-full h-full object-cover" />
-                      <button onClick={() => setViewProperty(null)} className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition"><X size={20} /></button>
-                      <div className="absolute bottom-3 left-3 flex gap-2"><span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow">{viewProperty.type}</span><span className="bg-white/90 text-slate-800 text-xs font-bold px-2 py-1 rounded shadow font-mono">#{viewProperty.code}</span></div>
-                  </div>
+                  <div className="relative h-56 bg-slate-200"><img src={viewProperty.images?.[0] || 'https://via.placeholder.com/600'} alt={viewProperty.title} className="w-full h-full object-cover" /><button onClick={() => setViewProperty(null)} className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition"><X size={20} /></button><div className="absolute bottom-3 left-3 flex gap-2"><span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow">{viewProperty.type}</span><span className="bg-white/90 text-slate-800 text-xs font-bold px-2 py-1 rounded shadow font-mono">#{viewProperty.code}</span></div></div>
                   <div className="p-6">
                       <h3 className="text-xl font-bold text-slate-800 leading-tight mb-1">{viewProperty.title}</h3>
                       <p className="text-sm text-slate-500 flex items-center mb-4"><MapPin size={14} className="mr-1"/> {viewProperty.neighborhood}, {viewProperty.city}</p>
-                      <div className="flex items-center justify-between text-slate-600 text-sm py-4 border-y border-slate-100 mb-4">
-                          <span className="flex items-center"><BedDouble size={16} className="mr-1 text-blue-500"/> {viewProperty.bedrooms}</span>
-                          <span className="flex items-center"><Bath size={16} className="mr-1 text-blue-500"/> {viewProperty.bathrooms}</span>
-                          <span className="flex items-center"><Square size={16} className="mr-1 text-blue-500"/> {viewProperty.area}m²</span>
-                      </div>
+                      <div className="flex items-center justify-between text-slate-600 text-sm py-4 border-y border-slate-100 mb-4"><span className="flex items-center"><BedDouble size={16} className="mr-1 text-blue-500"/> {viewProperty.bedrooms}</span><span className="flex items-center"><Bath size={16} className="mr-1 text-blue-500"/> {viewProperty.bathrooms}</span><span className="flex items-center"><Square size={16} className="mr-1 text-blue-500"/> {viewProperty.area}m²</span></div>
                       <p className="text-2xl font-bold text-blue-600 mb-4">{formatCurrency(viewProperty.price)}</p>
                   </div>
               </div>
