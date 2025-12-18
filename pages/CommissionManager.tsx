@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Property, CommissionSplit } from '../types';
@@ -8,7 +9,7 @@ export const CommissionManager: React.FC = () => {
     const context = useApp();
     const { updateProperty, currentAgency } = context;
     
-    // Strict typing to avoid 'unknown' inference
+    // Tipagem explícita para evitar inferência como 'unknown' durante o build
     const properties: Property[] = (context.properties as Property[]) || [];
     const users = context.users || [];
 

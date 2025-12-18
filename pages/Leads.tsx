@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
@@ -8,7 +9,7 @@ export const Leads: React.FC = () => {
   const context = useApp();
   const { addLead, updateLead, deleteLead, updateLeadInterestStatus, currentAgency } = context;
   
-  // Strict typing for context data to avoid 'unknown' inference during build
+  // Garantia de tipagem estrita para evitar erro 'unknown' no build da Vercel
   const leads: Lead[] = (context.leads as Lead[]) || [];
   const properties: Property[] = (context.properties as Property[]) || [];
 
