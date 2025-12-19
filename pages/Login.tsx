@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, LogIn, AlertCircle, PlusCircle, Briefcase, Lock, CheckCircle, ArrowLeft, Phone } from 'lucide-react';
+import { Building2, LogIn, AlertCircle, PlusCircle, Briefcase, Lock, CheckCircle, ArrowLeft, Phone, CreditCard } from 'lucide-react';
 import { clearCredentials, isHardcoded } from '../services/supabaseClient';
 
 export const Login: React.FC = () => {
@@ -20,20 +20,26 @@ export const Login: React.FC = () => {
   const [regPassword, setRegPassword] = useState('');
 
   const [error, setError] = useState('');
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsTrialExpired(false);
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Login agora retorna objeto com success e message
     const result = await login(email, password);
     
     if (!result.success) {
-        setError(result.message || 'E-mail ou senha incorretos.');
+        if (result.message === 'PERÍODO DE TESTE EXPIRADO') {
+            setError('Seu período de teste de 7 dias chegou ao fim.');
+            setIsTrialExpired(true);
+        } else {
+            setError(result.message || 'E-mail ou senha incorretos.');
+        }
         setIsSubmitting(false);
     }
   };
@@ -41,6 +47,7 @@ export const Login: React.FC = () => {
   const handleRegister = async (e: React.FormEvent) => {
       e.preventDefault();
       setError('');
+      setIsTrialExpired(false);
       setSuccessMsg('');
       setIsSubmitting(true);
       
@@ -52,9 +59,11 @@ export const Login: React.FC = () => {
       } else {
           setSuccessMsg(result.message || 'Cadastro realizado!');
           setIsSubmitting(false);
-          // Opcional: Voltar para aba de login
-          // setActiveTab('login');
       }
+  };
+
+  const handleSubscribe = () => {
+      window.location.href = 'https://pay.hotmart.com/L103469151O';
   };
 
   const handleResetConfig = () => {
@@ -95,13 +104,13 @@ export const Login: React.FC = () => {
         {/* Tabs */}
         <div className="flex border-b border-slate-200">
             <button 
-                onClick={() => { setActiveTab('login'); setError(''); setSuccessMsg(''); }}
+                onClick={() => { setActiveTab('login'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
                 className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center space-x-2 transition ${activeTab === 'login' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <LogIn size={18} /> <span>Entrar</span>
             </button>
             <button 
-                onClick={() => { setActiveTab('register'); setError(''); setSuccessMsg(''); }}
+                onClick={() => { setActiveTab('register'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
                 className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center space-x-2 transition ${activeTab === 'register' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <PlusCircle size={18} /> <span>Nova Imobiliária</span>
@@ -110,9 +119,19 @@ export const Login: React.FC = () => {
         
         <div className="p-8">
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center text-sm">
-                    <AlertCircle size={16} className="mr-2 flex-shrink-0" />
-                    {error}
+                <div className={`border px-4 py-3 rounded-lg mb-6 flex flex-col items-center text-sm ${isTrialExpired ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                    <div className="flex items-center w-full">
+                        <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+                        {error}
+                    </div>
+                    {isTrialExpired && (
+                        <button 
+                            onClick={handleSubscribe}
+                            className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-lg flex items-center justify-center transition shadow-lg shadow-green-600/20 animate-bounce"
+                        >
+                            <CreditCard size={18} className="mr-2" /> Assinar Plano Agora
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -248,7 +267,7 @@ export const Login: React.FC = () => {
                                 disabled={isSubmitting}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center transition disabled:opacity-70 shadow-md shadow-green-500/20"
                             >
-                                {isSubmitting ? 'Criando...' : 'Iniciar Teste Grátis (3 Dias)'}
+                                {isSubmitting ? 'Criando...' : 'Iniciar Teste Grátis (7 Dias)'}
                             </button>
                         </form>
                     )}

@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import * as DB from '../services/db';
 import { Agency, User, Property } from '../types';
-import { ShieldAlert, Building2, Users, Search, Trash2, Edit, Save, X, Activity, BarChart3, Home, Lock, Unlock, CheckCircle, Clock, Phone, Calendar, ExternalLink, LogIn } from 'lucide-react';
+import { ShieldAlert, Building2, Users, Search, Trash2, Edit, Save, X, Activity, BarChart3, Home, Lock, Unlock, CheckCircle, Clock, Phone, Calendar, ExternalLink, LogIn, AlertTriangle } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin: React.FC = () => {
-    const { isSuperAdmin, setAgency, setCurrentView } = useApp();
+    const { isSuperAdmin, setAgency, setCurrentView, refreshPendingCount } = useApp();
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'agencies' | 'users'>('agencies');
     
@@ -91,6 +91,7 @@ export const SuperAdmin: React.FC = () => {
                 await DB.deleteItem('users', itemToDelete.id);
             }
             loadGlobalData();
+            refreshPendingCount();
         } catch (e: any) {
             alert(`Erro ao excluir: ${e.message}`);
         }
@@ -104,6 +105,8 @@ export const SuperAdmin: React.FC = () => {
             await DB.updateItem('agencies', { id: agency.id, isApproved: newStatus });
             // Atualiza localmente
             setAllAgencies(prev => prev.map(a => a.id === agency.id ? { ...a, isApproved: newStatus } : a));
+            // Atualiza contador da sidebar
+            refreshPendingCount();
         } catch (e) {
             alert('Erro ao atualizar status da agência.');
         }
@@ -210,8 +213,8 @@ export const SuperAdmin: React.FC = () => {
                                 <tr>
                                     <th className="px-6 py-3">Agência</th>
                                     <th className="px-6 py-3">Status</th>
+                                    <th className="px-6 py-3">Expira Trial</th>
                                     <th className="px-6 py-3">Contato Admin</th>
-                                    <th className="px-6 py-3">Data Cadastro</th>
                                     <th className="px-6 py-3">Usuários/Imóveis</th>
                                     <th className="px-6 py-3 text-right">Ações</th>
                                 </tr>
@@ -222,8 +225,11 @@ export const SuperAdmin: React.FC = () => {
                                     const agencyProps = allProperties.filter(p => p.agencyId === agency.id).length;
                                     const isApproved = agency.isApproved;
                                     
+                                    const expDate = agency.trialExpiresAt ? new Date(agency.trialExpiresAt) : null;
+                                    const isExpired = !isApproved && expDate && new Date() > expDate;
+                                    
                                     return (
-                                        <tr key={agency.id} className="hover:bg-slate-50 group">
+                                        <tr key={agency.id} className={`hover:bg-slate-50 group ${isExpired ? 'bg-red-50/30' : ''}`}>
                                             <td className="px-6 py-4 font-medium text-slate-800">
                                                 <button 
                                                     onClick={() => handleEnterAgency(agency)}
@@ -246,10 +252,23 @@ export const SuperAdmin: React.FC = () => {
                                                         <CheckCircle size={12} className="mr-1"/> Aprovado
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">
-                                                        <Clock size={12} className="mr-1"/> Teste Ativo
+                                                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${isExpired ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}>
+                                                        <Clock size={12} className="mr-1"/> {isExpired ? 'Expirado' : 'Pendente'}
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className={`flex flex-col ${isExpired ? 'text-red-600 font-black' : 'text-slate-600 font-medium'}`}>
+                                                    <div className="flex items-center text-sm">
+                                                        <Calendar size={14} className="mr-1.5 opacity-50" />
+                                                        {agency.trialExpiresAt ? new Date(agency.trialExpiresAt).toLocaleDateString('pt-BR') : '-'}
+                                                    </div>
+                                                    {isExpired && (
+                                                        <span className="text-[10px] uppercase tracking-tighter flex items-center">
+                                                            <AlertTriangle size={10} className="mr-1"/> Requer Liberação
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="flex items-center text-slate-700 font-medium">
@@ -257,12 +276,6 @@ export const SuperAdmin: React.FC = () => {
                                                     <a href={`https://wa.me/55${getAgencyAdminPhone(agency.id).replace(/\D/g, '')}`} target="_blank" className="hover:underline">
                                                         {getAgencyAdminPhone(agency.id)}
                                                     </a>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                <div className="flex items-center">
-                                                    <Calendar size={14} className="mr-1.5 text-slate-400" />
-                                                    {agency.createdAt ? new Date(agency.createdAt).toLocaleDateString('pt-BR') : '-'}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-xs">
@@ -275,7 +288,7 @@ export const SuperAdmin: React.FC = () => {
                                                         className={`text-xs font-bold px-3 py-1.5 rounded flex items-center transition ${
                                                             isApproved 
                                                             ? 'bg-red-50 text-red-600 hover:bg-red-100' 
-                                                            : 'bg-green-600 text-white hover:bg-green-700'
+                                                            : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
                                                         }`}
                                                         title={isApproved ? "Bloquear acesso" : "Liberar acesso definitivo"}
                                                     >
