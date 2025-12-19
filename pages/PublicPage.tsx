@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowRight, X, ChevronLeft, ChevronRight, CheckCircle, User, Filter, ArrowUpDown, MessageCircle, ArrowLeft } from 'lucide-react';
@@ -40,6 +39,18 @@ export const PublicPage: React.FC = () => {
     const [formSuccess, setFormSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Lock body scroll when lightbox is open
+    useEffect(() => {
+        if (lightboxOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [lightboxOpen]);
+
     // Scroll para o topo quando selecionar um imóvel
     useEffect(() => {
         if (selectedProperty) {
@@ -62,7 +73,7 @@ export const PublicPage: React.FC = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [lightboxOpen, selectedProperty]);
+    }, [lightboxOpen, selectedProperty, currentImageIndex]);
 
     const activeProperties = properties.filter(p => p.status === 'Active');
     const allCities = Array.from(new Set(activeProperties.map(p => p.city || '').filter(c => c !== ''))).sort();
@@ -462,7 +473,7 @@ export const PublicPage: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* Galeria de Miniaturas - Ajustada para não esticar */}
+                                        {/* Galeria de Miniaturas - Corrigido para não esticar */}
                                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300">
                                             {selectedProperty.images?.map((img, idx) => (
                                                 <button 
@@ -470,7 +481,7 @@ export const PublicPage: React.FC = () => {
                                                     onClick={() => { setCurrentImageIndex(idx); setLightboxOpen(true); }} 
                                                     className={`w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden flex-shrink-0 border-4 transition-all duration-300 ${currentImageIndex === idx ? 'border-blue-600 scale-95 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
                                                 >
-                                                    <img src={img} className="w-full h-full object-cover" alt="" />
+                                                    <img src={img} className="w-full h-full object-cover flex-shrink-0" alt="" />
                                                 </button>
                                             ))}
                                         </div>
@@ -569,9 +580,9 @@ export const PublicPage: React.FC = () => {
                 )}
             </main>
 
-            {/* LIGHTBOX COMPONENT - TELA TODA COM BOTÕES DE NAVEGAÇÃO E FECHAR */}
+            {/* LIGHTBOX COMPONENT - TELA TODA COM BOTÕES DE NAVEGAÇÃO E FECHAR - FUNDO PRETO ABSOLUTO */}
             {lightboxOpen && selectedProperty && (
-                <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center animate-in fade-in duration-300">
+                <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center overflow-hidden">
                     {/* Botão Fechar */}
                     <button 
                         onClick={() => setLightboxOpen(false)} 
@@ -593,7 +604,7 @@ export const PublicPage: React.FC = () => {
                         <div className="relative max-w-full max-h-full flex items-center justify-center">
                             <img 
                                 src={selectedProperty.images?.[currentImageIndex]} 
-                                className="max-w-full max-h-[90vh] object-contain shadow-2xl animate-in zoom-in-95 duration-500 select-none pointer-events-none" 
+                                className="max-w-full max-h-[90vh] object-contain shadow-2xl animate-in zoom-in-95 duration-500 select-none" 
                                 alt=""
                             />
                             {/* Marca d'água opcional no zoom */}
