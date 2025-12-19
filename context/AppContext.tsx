@@ -16,6 +16,8 @@ interface AppContextType {
     financialRecords: FinancialRecord[];
     currentView: ViewState;
     setCurrentView: (view: ViewState) => void;
+    authTab: 'login' | 'register';
+    setAuthTab: (tab: 'login' | 'register') => void;
     isLoading: boolean;
     themeColor: string;
     setThemeColor: (color: string) => void;
@@ -71,6 +73,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentAgency, setCurrentAgency] = useState<Agency | null>(null);
     const [currentView, setCurrentView] = useState<ViewState>('LANDING');
+    const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
     const [isLoading, setIsLoading] = useState(true);
     const [properties, setProperties] = useState<Property[]>([]);
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -374,7 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return (
         <AppContext.Provider value={{
             currentUser, currentAgency, properties, leads, tasks, users, messages, financialRecords,
-            currentView, setCurrentView, isLoading, themeColor, setThemeColor, darkMode, setDarkMode,
+            currentView, setCurrentView, authTab, setAuthTab, isLoading, themeColor, setThemeColor, darkMode, setDarkMode,
             login, logout, registerAgency, setAgency: setCurrentAgency,
             addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, renewRental, getNextPropertyCode,
             addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead,
