@@ -74,7 +74,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentAgency, setCurrentAgency] = useState<Agency | null>(null);
     const [publicAgency, setPublicAgency] = useState<Agency | null>(null);
-    const [currentView, setCurrentView] = useState<ViewState>('LANDING');
+    
+    // Inicialização inteligente da view para evitar flicker da landing page em acessos públicos
+    const [currentView, setCurrentView] = useState<ViewState>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const publicId = params.get('agency') || params.get('imob') || pathParts[0];
+        if (publicId && publicId !== 'index.html' && publicId !== 'index2.html') {
+            return 'PUBLIC';
+        }
+        return 'LANDING';
+    });
+
     const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
     const [isLoading, setIsLoading] = useState(true);
     const [properties, setProperties] = useState<Property[]>([]);
@@ -133,7 +144,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 // Se houver algo no path (ex: /nome-ou-id), tenta usar como ID da agência
                 const publicAgencyId = params.get('agency') || params.get('imob') || pathParts[0];
 
-                if (publicAgencyId && publicAgencyId !== 'index.html') {
+                if (publicAgencyId && publicAgencyId !== 'index.html' && publicAgencyId !== 'index2.html') {
                     // Carrega agência para o site público
                     const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: publicAgencyId });
                     if (agencies && agencies.length > 0) {
@@ -141,6 +152,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         const props = await DB.getAll<Property>('properties', { column: 'agencyId', value: publicAgencyId });
                         setProperties(props);
                         setCurrentView('PUBLIC');
+                    } else {
+                        // Caso o ID seja inválido, volta para landing se não estiver logado
+                        if (!localStorage.getItem('imob_user_id')) {
+                            setCurrentView('LANDING');
+                        }
                     }
                 }
 
@@ -165,6 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         setCurrentUser(user);
                         const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
                         if (agencies && agencies.length > 0) setCurrentAgency(agencies[0]);
+                        if (currentView !== 'PUBLIC') setCurrentView('DASHBOARD');
                     } else {
                         localStorage.removeItem('imob_user_id');
                     }
