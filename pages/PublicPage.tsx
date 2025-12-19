@@ -5,8 +5,11 @@ import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowR
 import { PropertyType, Property, LeadStatus } from '../types';
 
 export const PublicPage: React.FC = () => {
-    const { properties, currentAgency, addLead, users } = useApp();
+    const { properties, publicAgency, currentAgency, addLead, users } = useApp();
     
+    // Prioriza a agência pública (da URL) ou a atual (do logado, para preview)
+    const agency = publicAgency || currentAgency;
+
     // --- FILTERS STATE ---
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<string>('');
@@ -17,26 +20,20 @@ export const PublicPage: React.FC = () => {
     const [priceMax, setPriceMax] = useState('');
     const [bedroomsFilter, setBedroomsFilter] = useState<string>('');
     const [bathroomsFilter, setBathroomsFilter] = useState<string>('');
-    // Alterado para array para suportar múltiplos diferenciais
     const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-    const [sortOption, setSortOption] = useState('date_desc'); // Default: Mais recentes
+    const [sortOption, setSortOption] = useState('date_desc'); 
 
-    // Modal State
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showInterestForm, setShowInterestForm] = useState(false);
     
-    // Lead Form State
     const [leadName, setLeadName] = useState('');
     const [leadEmail, setLeadEmail] = useState('');
     const [leadPhone, setLeadPhone] = useState('');
     const [formSuccess, setFormSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Filter properties (Active only)
     const activeProperties = properties.filter(p => p.status === 'Active');
-
-    // Generate dynamic lists based on active properties
     const allCities = Array.from(new Set(activeProperties.map(p => p.city || '').filter(c => c !== ''))).sort();
     const allFeatures = Array.from(new Set(activeProperties.flatMap(p => p.features || []))).sort();
 
@@ -61,7 +58,6 @@ export const PublicPage: React.FC = () => {
         const matchBedrooms = !bedroomsFilter || property.bedrooms >= Number(bedroomsFilter);
         const matchBathrooms = !bathroomsFilter || property.bathrooms >= Number(bathroomsFilter);
         
-        // Verifica se o imóvel tem TODOS os diferenciais selecionados
         const matchFeature = selectedFeatures.length === 0 || 
             selectedFeatures.every(f => property.features && property.features.includes(f));
 
@@ -69,112 +65,49 @@ export const PublicPage: React.FC = () => {
       })
       .sort((a, b) => {
           switch (sortOption) {
-              case 'price_asc':
-                  return a.price - b.price;
-              case 'price_desc':
-                  return b.price - a.price;
-              case 'date_asc':
-                  // ID numérico é timestamp da criação. IDs não numéricos (seed) retornam 0 (antigos)
-                  return (Number(a.id) || 0) - (Number(b.id) || 0);
+              case 'price_asc': return a.price - b.price;
+              case 'price_desc': return b.price - a.price;
+              case 'date_asc': return (Number(a.id) || 0) - (Number(b.id) || 0);
               case 'date_desc':
-              default:
-                  return (Number(b.id) || 0) - (Number(a.id) || 0);
+              default: return (Number(b.id) || 0) - (Number(a.id) || 0);
           }
       });
 
-    // --- CURRENCY HELPERS ---
-    const parseCurrency = (value: string) => {
-        return Number(value.replace(/\D/g, "")) / 100;
-    };
-
+    const parseCurrency = (value: string) => Number(value.replace(/\D/g, "")) / 100;
     const formatCurrency = (value: number | undefined) => {
         if (value === undefined || isNaN(value)) return 'R$ 0,00';
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     };
     
-    const formatPriceDisplay = (price: number) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
-    };
+    const formatPriceDisplay = (price: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
 
     const clearFilters = () => {
-        setSearchTerm('');
-        setTypeFilter('');
-        setCategoryFilter('');
-        setSubtypeFilter('');
-        setCityFilter('');
-        setPriceMin('');
-        setPriceMax('');
-        setBedroomsFilter('');
-        setBathroomsFilter('');
-        setSelectedFeatures([]);
-        setSortOption('date_desc');
+        setSearchTerm(''); setTypeFilter(''); setCategoryFilter(''); setSubtypeFilter(''); setCityFilter(''); setPriceMin(''); setPriceMax(''); setBedroomsFilter(''); setBathroomsFilter(''); setSelectedFeatures([]); setSortOption('date_desc');
     };
 
-    const addFeatureFilter = (feature: string) => {
-        if (feature && !selectedFeatures.includes(feature)) {
-            setSelectedFeatures([...selectedFeatures, feature]);
-        }
-    };
-
-    const removeFeatureFilter = (feature: string) => {
-        setSelectedFeatures(selectedFeatures.filter(f => f !== feature));
-    };
+    const addFeatureFilter = (feature: string) => { if (feature && !selectedFeatures.includes(feature)) setSelectedFeatures([...selectedFeatures, feature]); };
+    const removeFeatureFilter = (feature: string) => setSelectedFeatures(selectedFeatures.filter(f => f !== feature));
 
     const handleViewDetails = (property: Property) => {
-        setSelectedProperty(property);
-        setCurrentImageIndex(0);
-        setShowInterestForm(false);
-        setFormSuccess(false);
-        setLeadName('');
-        setLeadEmail('');
-        setLeadPhone('');
+        setSelectedProperty(property); setCurrentImageIndex(0); setShowInterestForm(false); setFormSuccess(false); setLeadName(''); setLeadEmail(''); setLeadPhone('');
     };
 
-    const handleCloseModal = () => {
-        setSelectedProperty(null);
-    };
-
-    const nextImage = () => {
-        if (selectedProperty && selectedProperty.images) {
-            setCurrentImageIndex((prev) => (prev + 1) % selectedProperty.images.length);
-        }
-    };
-
-    const prevImage = () => {
-        if (selectedProperty && selectedProperty.images) {
-            setCurrentImageIndex((prev) => (prev - 1 + selectedProperty.images.length) % selectedProperty.images.length);
-        }
-    };
+    const handleCloseModal = () => setSelectedProperty(null);
+    const nextImage = () => { if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev + 1) % selectedProperty.images.length); };
+    const prevImage = () => { if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev - 1 + selectedProperty.images.length) % selectedProperty.images.length); };
 
     const handleSubmitInterest = async (e: React.FormEvent) => {
         e.preventDefault();
-        if(!selectedProperty || !currentAgency) return;
-        
+        if(!selectedProperty || !agency) return;
         setIsSubmitting(true);
-
         try {
             await addLead({
-                id: Date.now().toString(),
-                name: leadName,
-                email: leadEmail,
-                phone: leadPhone,
-                type: 'Buyer',
-                status: LeadStatus.NEW,
-                source: 'Site', // Auto
-                interestedInPropertyIds: [selectedProperty.id],
-                interests: [{
-                    propertyId: selectedProperty.id,
-                    status: LeadStatus.NEW,
-                    updatedAt: new Date().toISOString()
-                }],
-                notes: 'Captado via Site Público',
-                createdAt: new Date().toISOString(),
-                agencyId: currentAgency.id
+                id: Date.now().toString(), name: leadName, email: leadEmail, phone: leadPhone, type: 'Buyer', status: LeadStatus.NEW, source: 'Site', interestedInPropertyIds: [selectedProperty.id],
+                interests: [{ propertyId: selectedProperty.id, status: LeadStatus.NEW, updatedAt: new Date().toISOString() }],
+                notes: 'Captado via Site Público', createdAt: new Date().toISOString(), agencyId: agency.id
             });
             setFormSuccess(true);
-            setTimeout(() => {
-                handleCloseModal();
-            }, 2500);
+            setTimeout(() => { handleCloseModal(); }, 2500);
         } catch (error) {
             alert('Erro ao enviar contato. Tente novamente.');
         } finally {
@@ -185,35 +118,31 @@ export const PublicPage: React.FC = () => {
     const handleGoBack = () => {
         const url = new URL(window.location.href);
         url.searchParams.delete('mode');
+        url.searchParams.delete('imob');
+        url.searchParams.delete('agency');
         window.location.search = ''; 
     };
 
-    // Componente de Marca d'água - Aumentada a opacidade para ser "menos transparente"
     const Watermark = ({ sizeClasses = "max-w-[150px] opacity-30" }: { sizeClasses?: string }) => {
-        if (!currentAgency?.logoUrl) return null;
+        if (!agency?.logoUrl) return null;
         return (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 p-4">
-                <img 
-                    src={currentAgency.logoUrl} 
-                    alt="" 
-                    className={`${sizeClasses} h-auto object-contain pointer-events-none`}
-                />
+                <img src={agency.logoUrl} alt="" className={`${sizeClasses} h-auto object-contain pointer-events-none`}/>
             </div>
         );
     };
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-            {/* Header / Hero */}
             <header className="bg-slate-100 shadow-sm sticky top-0 z-40 border-b border-slate-200">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
-                        {currentAgency?.logoUrl ? (
-                            <img src={currentAgency.logoUrl} className="h-12 w-auto object-contain" alt={currentAgency.name} />
+                        {agency?.logoUrl ? (
+                            <img src={agency.logoUrl} className="h-12 w-auto object-contain" alt={agency.name} />
                         ) : (
                             <div className="flex items-center space-x-2 text-slate-800">
                                 <Building2 size={32} />
-                                <span className="text-2xl font-bold tracking-tight">{currentAgency?.name || 'ImobERP'}</span>
+                                <span className="text-2xl font-bold tracking-tight">{agency?.name || 'ImobERP'}</span>
                             </div>
                         )}
                     </div>
@@ -223,7 +152,6 @@ export const PublicPage: React.FC = () => {
                 </div>
             </header>
 
-            {/* Filter Section */}
             <div className="bg-white border-b border-slate-200 py-6 px-6 shadow-sm">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center space-x-2 mb-4 text-slate-500 font-bold uppercase text-xs tracking-wider">
@@ -231,7 +159,6 @@ export const PublicPage: React.FC = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        {/* Linha 1 */}
                         <div className="col-span-1 md:col-span-2 lg:col-span-1">
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Buscar</label>
                             <div className="relative">
@@ -261,7 +188,6 @@ export const PublicPage: React.FC = () => {
                             </select>
                         </div>
 
-                        {/* Linha 2 */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Subtipo</label>
                             <select value={subtypeFilter} onChange={(e) => setSubtypeFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
@@ -272,29 +198,11 @@ export const PublicPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Mín</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="R$ 0,00" 
-                                    value={priceMin ? formatCurrency(Number(priceMin)) : ''} 
-                                    onChange={(e) => {
-                                        const val = parseCurrency(e.target.value);
-                                        setPriceMin(val ? val.toString() : '');
-                                    }}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" 
-                                />
+                                <input type="text" placeholder="R$ 0,00" value={priceMin ? formatCurrency(Number(priceMin)) : ''} onChange={(e) => { const val = parseCurrency(e.target.value); setPriceMin(val ? val.toString() : ''); }} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Máx</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="R$ Max" 
-                                    value={priceMax ? formatCurrency(Number(priceMax)) : ''} 
-                                    onChange={(e) => {
-                                        const val = parseCurrency(e.target.value);
-                                        setPriceMax(val ? val.toString() : '');
-                                    }}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" 
-                                />
+                                <input type="text" placeholder="R$ Max" value={priceMax ? formatCurrency(Number(priceMax)) : ''} onChange={(e) => { const val = parseCurrency(e.target.value); setPriceMax(val ? val.toString() : ''); }} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -308,20 +216,13 @@ export const PublicPage: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Diferenciais (Múltiplos)</label>
-                            <select 
-                                onChange={(e) => {
-                                    addFeatureFilter(e.target.value);
-                                    e.target.value = ""; // Reset
-                                }} 
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            >
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Diferenciais</label>
+                            <select onChange={(e) => { addFeatureFilter(e.target.value); e.target.value = ""; }} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                 <option value="">+ Adicionar filtro...</option>
                                 {allFeatures.filter(f => !selectedFeatures.includes(f)).map(f => <option key={f} value={f}>{f}</option>)}
                             </select>
                         </div>
 
-                        {/* Linha 3 (Sorting) */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center"><ArrowUpDown size={12} className="mr-1"/> Ordenar Por</label>
                             <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
@@ -333,13 +234,11 @@ export const PublicPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Chips de Diferenciais Selecionados */}
                     {selectedFeatures.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-4 px-1">
                             {selectedFeatures.map(feat => (
                                 <span key={feat} className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full flex items-center font-medium border border-blue-200">
-                                    {feat}
-                                    <button onClick={() => removeFeatureFilter(feat)} className="ml-2 hover:text-red-500"><X size={12}/></button>
+                                    {feat} <button onClick={() => removeFeatureFilter(feat)} className="ml-2 hover:text-red-500"><X size={12}/></button>
                                 </span>
                             ))}
                         </div>
@@ -355,7 +254,6 @@ export const PublicPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Properties Grid */}
             <div className="max-w-7xl mx-auto px-6 py-12">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-slate-800 flex items-center">
@@ -368,43 +266,17 @@ export const PublicPage: React.FC = () => {
                     {filteredProperties.map(property => (
                         <div key={property.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl transition duration-300 group cursor-pointer flex flex-col h-full" onClick={() => handleViewDetails(property)}>
                             <div className="h-64 overflow-hidden relative flex-shrink-0">
-                                <img
-                                    src={property.images?.[0] || 'https://via.placeholder.com/400'}
-                                    alt={property.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                />
-                                {/* Marca d'água no card - Aumentada opacidade de 15 para 25 */}
+                                <img src={property.images?.[0] || 'https://via.placeholder.com/400'} alt={property.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                 <Watermark sizeClasses="max-w-[100px] opacity-25" />
-                                
-                                <div className="absolute top-4 left-4 z-20">
-                                    <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded shadow-md uppercase tracking-wider">{property.type}</span>
-                                </div>
-                                <div className="absolute top-4 right-4 bg-white/90 px-2 py-1 rounded text-xs font-bold font-mono text-slate-800 shadow-sm z-20 whitespace-nowrap">
-                                    Cód: {property.code ? property.code.toString().padStart(5, '0') : '---'}
-                                </div>
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 pt-12 z-20">
-                                     <p className="text-white font-extrabold text-2xl tracking-tight drop-shadow-lg">{formatPriceDisplay(property.price)}</p>
-                                </div>
+                                <div className="absolute top-4 left-4 z-20"><span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded shadow-md uppercase tracking-wider">{property.type}</span></div>
+                                <div className="absolute top-4 right-4 bg-white/90 px-2 py-1 rounded text-xs font-bold font-mono text-slate-800 shadow-sm z-20 whitespace-nowrap">Cód: {property.code ? property.code.toString().padStart(5, '0') : '---'}</div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 pt-12 z-20"><p className="text-white font-extrabold text-2xl tracking-tight drop-shadow-lg">{formatPriceDisplay(property.price)}</p></div>
                             </div>
                             <div className="p-6 flex flex-col flex-1">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-blue-600 transition">{property.title}</h3>
-                                <p className="text-slate-500 text-sm mb-4 flex items-center">
-                                    <MapPin size={14} className="mr-1 text-slate-400 flex-shrink-0"/>
-                                    <span className="truncate">{property.neighborhood}, {property.city} - {property.state}</span>
-                                </p>
-
-                                <div className="flex items-center justify-between py-4 border-t border-slate-100 text-slate-600 text-sm mt-auto">
-                                    <span className="flex items-center" title="Quartos"><BedDouble size={16} className="mr-1.5 text-blue-500"/> {property.bedrooms}</span>
-                                    <span className="flex items-center" title="Banheiros"><Bath size={16} className="mr-1.5 text-blue-500"/> {property.bathrooms}</span>
-                                    <span className="flex items-center" title="Área"><Square size={16} className="mr-1.5 text-blue-500"/> {property.area}m²</span>
-                                </div>
-
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(property); }}
-                                    className="w-full mt-4 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center shadow-sm"
-                                >
-                                    Ver Detalhes <ArrowRight size={16} className="ml-2" />
-                                </button>
+                                <p className="text-slate-500 text-sm mb-4 flex items-center"><MapPin size={14} className="mr-1 text-slate-400 flex-shrink-0"/><span className="truncate">{property.neighborhood}, {property.city} - {property.state}</span></p>
+                                <div className="flex items-center justify-between py-4 border-t border-slate-100 text-slate-600 text-sm mt-auto"><span className="flex items-center" title="Quartos"><BedDouble size={16} className="mr-1.5 text-blue-500"/> {property.bedrooms}</span><span className="flex items-center" title="Banheiros"><Bath size={16} className="mr-1.5 text-blue-500"/> {property.bathrooms}</span><span className="flex items-center" title="Área"><Square size={16} className="mr-1.5 text-blue-500"/> {property.area}m²</span></div>
+                                <button onClick={(e) => { e.stopPropagation(); handleViewDetails(property); }} className="w-full mt-4 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center shadow-sm">Ver Detalhes <ArrowRight size={16} className="ml-2" /></button>
                             </div>
                         </div>
                     ))}
@@ -416,210 +288,76 @@ export const PublicPage: React.FC = () => {
                  )}
             </div>
 
-            {/* Footer */}
             <footer className="bg-white text-slate-600 py-12 px-6 border-t border-slate-200">
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
                     <div>
                         <div className="flex items-center space-x-2 text-slate-900 mb-4">
-                            {currentAgency?.logoUrl ? (
-                                <img src={currentAgency.logoUrl} className="h-10 w-auto object-contain" alt={currentAgency.name} />
+                            {agency?.logoUrl ? (
+                                <img src={agency.logoUrl} className="h-10 w-auto object-contain" alt={agency.name} />
                             ) : (
-                                <div className="flex items-center space-x-2 text-slate-800">
-                                    <Building2 size={24} />
-                                    <span className="text-xl font-bold">{currentAgency?.name || 'ImobERP'}</span>
-                                </div>
+                                <div className="flex items-center space-x-2 text-slate-800"><Building2 size={24} /><span className="text-xl font-bold">{agency?.name || 'ImobERP'}</span></div>
                             )}
                         </div>
                     </div>
                     <div>
                         <h4 className="text-slate-900 font-bold mb-4">Contato</h4>
                         <ul className="space-y-3 text-sm">
-                            <li className="flex items-center">
-                                <Mail size={16} className="mr-2 text-blue-600"/> 
-                                {currentAgency?.email || users.find(u => u.role === 'Admin')?.email || 'contato@imobiliaria.com.br'}
-                            </li>
-                            {currentAgency?.phone && (
-                                <li className="flex items-center"><Phone size={16} className="mr-2 text-blue-600"/> {currentAgency.phone}</li>
-                            )}
+                            <li className="flex items-center"><Mail size={16} className="mr-2 text-blue-600"/> {agency?.email || users.find(u => u.role === 'Admin')?.email || 'contato@imobiliaria.com.br'}</li>
+                            {agency?.phone && <li className="flex items-center"><Phone size={16} className="mr-2 text-blue-600"/> {agency.phone}</li>}
                         </ul>
                     </div>
                     <div>
                         <h4 className="text-slate-900 font-bold mb-4">Localização</h4>
                         <p className="text-sm flex items-start">
-                            {currentAgency?.address ? (
-                                <>
-                                    <MapPin size={16} className="mr-2 mt-0.5 text-blue-600 flex-shrink-0" />
-                                    <span>{currentAgency.address}{currentAgency.city ? `, ${currentAgency.city}` : ''}</span>
-                                </>
-                            ) : (
-                                "Atendemos em toda a região."
-                            )}
+                            {agency?.address ? (
+                                <><MapPin size={16} className="mr-2 mt-0.5 text-blue-600 flex-shrink-0" /><span>{agency.address}{agency.city ? `, ${agency.city}` : ''}</span></>
+                            ) : "Atendemos em toda a região."}
                         </p>
                     </div>
                 </div>
                 <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-100 text-center text-xs text-slate-400">
-                    &copy; {new Date().getFullYear()} {currentAgency?.name}. Todos os direitos reservados.
+                    &copy; {new Date().getFullYear()} {agency?.name}. Todos os direitos reservados.
                 </div>
             </footer>
 
-            {/* MODAL DE DETALHES */}
             {selectedProperty && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row relative">
-                        <button 
-                            onClick={handleCloseModal}
-                            className="absolute top-4 right-4 z-[70] bg-white/80 hover:bg-white text-slate-600 rounded-full p-2 transition"
-                        >
-                            <X size={24} />
-                        </button>
-
-                        {/* Coluna Esquerda: Fotos */}
+                        <button onClick={handleCloseModal} className="absolute top-4 right-4 z-[70] bg-white/80 hover:bg-white text-slate-600 rounded-full p-2 transition"><X size={24} /></button>
                         <div className="w-full md:w-1/2 bg-slate-100 relative group flex flex-col">
                             <div className="flex-1 relative overflow-hidden bg-black">
-                                <img 
-                                    src={selectedProperty.images?.[currentImageIndex] || 'https://via.placeholder.com/800'} 
-                                    className="w-full h-full object-contain"
-                                    alt={selectedProperty.title}
-                                />
-                                {/* Marca d'água no modal - Aumentada opacidade de 20 para 35 */}
+                                <img src={selectedProperty.images?.[currentImageIndex] || 'https://via.placeholder.com/800'} className="w-full h-full object-contain" alt={selectedProperty.title} />
                                 <Watermark sizeClasses="max-w-[200px] md:max-w-[300px] opacity-35" />
-
                                 {selectedProperty.images && selectedProperty.images.length > 1 && (
-                                    <>
-                                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronLeft size={24}/></button>
-                                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronRight size={24}/></button>
-                                        <div className="absolute bottom-4 left-0 right-0 text-center z-20">
-                                            <span className="bg-black/50 text-white text-xs px-2 py-1 rounded-full">{currentImageIndex + 1} / {selectedProperty.images.length}</span>
-                                        </div>
-                                    </>
+                                    <><button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronLeft size={24}/></button><button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-md transition z-20"><ChevronRight size={24}/></button><div className="absolute bottom-4 left-0 right-0 text-center z-20"><span className="bg-black/50 text-white text-xs px-2 py-1 rounded-full">{currentImageIndex + 1} / {selectedProperty.images.length}</span></div></>
                                 )}
                             </div>
                         </div>
-
-                        {/* Coluna Direita: Informações */}
                         <div className="w-full md:w-1/2 p-8 overflow-y-auto bg-white flex flex-col">
                             {!showInterestForm ? (
                                 <>
                                     <div className="mb-6">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase">{selectedProperty.type}</span>
-                                            <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded uppercase">{selectedProperty.subtype}</span>
-                                            <span className="text-slate-400 text-xs font-mono ml-auto">Cód: {selectedProperty.code}</span>
-                                        </div>
+                                        <div className="flex items-center gap-2 mb-2"><span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase">{selectedProperty.type}</span><span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded uppercase">{selectedProperty.subtype}</span><span className="text-slate-400 text-xs font-mono ml-auto">Cód: {selectedProperty.code}</span></div>
                                         <h2 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{selectedProperty.title}</h2>
                                         <p className="text-4xl font-black text-blue-600 mb-4 tracking-tight">{formatPriceDisplay(selectedProperty.price)}</p>
-                                        
-                                        <div className="flex items-center text-slate-600 text-sm mb-6">
-                                            <MapPin size={16} className="mr-1 text-slate-400" />
-                                            {selectedProperty.neighborhood}, {selectedProperty.city} - {selectedProperty.state}
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-4 py-4 border-y border-slate-100 mb-6">
-                                            <div className="text-center">
-                                                <BedDouble size={20} className="mx-auto mb-1 text-blue-500" />
-                                                <span className="block font-bold text-slate-800">{selectedProperty.bedrooms}</span>
-                                                <span className="text-xs text-slate-500">Quartos</span>
-                                            </div>
-                                            <div className="text-center">
-                                                <Bath size={20} className="mx-auto mb-1 text-blue-500" />
-                                                <span className="block font-bold text-slate-800">{selectedProperty.bathrooms}</span>
-                                                <span className="text-xs text-slate-500">Banheiros</span>
-                                            </div>
-                                            <div className="text-center">
-                                                <Square size={20} className="mx-auto mb-1 text-blue-500" />
-                                                <span className="block font-bold text-slate-800">{selectedProperty.area}</span>
-                                                <span className="text-xs text-slate-500">m² Área</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4 mb-8">
-                                            <div>
-                                                <h3 className="font-bold text-slate-900 mb-2">Sobre o Imóvel</h3>
-                                                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{selectedProperty.description}</p>
-                                            </div>
-                                            {selectedProperty.features && selectedProperty.features.length > 0 && (
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900 mb-2">Diferenciais</h3>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {selectedProperty.features.map(feat => (
-                                                            <span key={feat} className="bg-slate-50 text-slate-600 text-xs px-2 py-1 rounded border border-slate-200">{feat}</span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <div className="flex items-center text-slate-600 text-sm mb-6"><MapPin size={16} className="mr-1 text-slate-400" />{selectedProperty.neighborhood}, {selectedProperty.city} - {selectedProperty.state}</div>
+                                        <div className="grid grid-cols-3 gap-4 py-4 border-y border-slate-100 mb-6"><div className="text-center"><BedDouble size={20} className="mx-auto mb-1 text-blue-500" /><span className="block font-bold text-slate-800">{selectedProperty.bedrooms}</span><span className="text-xs text-slate-500">Quartos</span></div><div className="text-center"><Bath size={20} className="mx-auto mb-1 text-blue-500" /><span className="block font-bold text-slate-800">{selectedProperty.bathrooms}</span><span className="text-xs text-slate-500">Banheiros</span></div><div className="text-center"><Square size={20} className="mx-auto mb-1 text-blue-500" /><span className="block font-bold text-slate-800">{selectedProperty.area}</span><span className="text-xs text-slate-500">m² Área</span></div></div>
+                                        <div className="space-y-4 mb-8"><div><h3 className="font-bold text-slate-900 mb-2">Sobre o Imóvel</h3><p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{selectedProperty.description}</p></div>{selectedProperty.features && selectedProperty.features.length > 0 && (<div><h3 className="font-bold text-slate-900 mb-2">Diferenciais</h3><div className="flex flex-wrap gap-2">{selectedProperty.features.map(feat => (<span key={feat} className="bg-slate-50 text-slate-600 text-xs px-2 py-1 rounded border border-slate-200">{feat}</span>))}</div></div>)}</div>
                                     </div>
-
-                                    <div className="mt-auto pt-4">
-                                        <button 
-                                            onClick={() => setShowInterestForm(true)}
-                                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-500/20 transition transform hover:scale-[1.02] flex items-center justify-center text-lg"
-                                        >
-                                            <Phone size={20} className="mr-2" />
-                                            Tenho Interesse
-                                        </button>
-                                        <p className="text-center text-xs text-slate-400 mt-2">Fale com um corretor agora mesmo.</p>
-                                    </div>
+                                    <div className="mt-auto pt-4"><button onClick={() => setShowInterestForm(true)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-500/20 transition transform hover:scale-[1.02] flex items-center justify-center text-lg"><Phone size={20} className="mr-2" />Tenho Interesse</button><p className="text-center text-xs text-slate-400 mt-2">Fale com um corretor agora mesmo.</p></div>
                                 </>
                             ) : (
                                 <div className="h-full flex flex-col">
-                                    <button onClick={() => setShowInterestForm(false)} className="text-slate-500 hover:text-slate-800 text-sm flex items-center mb-6">
-                                        <ArrowRight size={16} className="mr-1 rotate-180" /> Voltar aos detalhes
-                                    </button>
-
+                                    <button onClick={() => setShowInterestForm(false)} className="text-slate-500 hover:text-slate-800 text-sm flex items-center mb-6"><ArrowRight size={16} className="mr-1 rotate-180" /> Voltar aos detalhes</button>
                                     {formSuccess ? (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
-                                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-                                                <CheckCircle size={40} />
-                                            </div>
-                                            <h3 className="text-2xl font-bold text-slate-800 mb-2">Sucesso!</h3>
-                                            <p className="text-slate-600 mb-6">Recebemos seu contato. Em breve um de nossos corretores entrará em contato.</p>
-                                            <button onClick={handleCloseModal} className="text-blue-600 font-bold hover:underline">Fechar Janela</button>
-                                        </div>
+                                        <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300"><div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6"><CheckCircle size={40} /></div><h3 className="text-2xl font-bold text-slate-800 mb-2">Sucesso!</h3><p className="text-slate-600 mb-6">Recebemos seu contato. Em breve um de nossos corretores entrará em contato.</p><button onClick={handleCloseModal} className="text-blue-600 font-bold hover:underline">Fechar Janela</button></div>
                                     ) : (
-                                        <div className="flex-1 flex flex-col justify-center animate-in slide-in-from-right duration-300">
-                                            <h3 className="text-2xl font-bold text-slate-800 mb-2">Gostou deste imóvel?</h3>
-                                            <p className="text-slate-600 mb-8">Preencha seus dados abaixo para receber mais informações.</p>
-
+                                        <div className="flex-1 flex flex-col justify-center animate-in slide-in-from-right duration-300"><h3 className="text-2xl font-bold text-slate-800 mb-2">Gostou deste imóvel?</h3><p className="text-slate-600 mb-8">Preencha seus dados abaixo para receber mais informações.</p>
                                             <form onSubmit={handleSubmitInterest} className="space-y-4">
-                                                <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1">Seu Nome</label>
-                                                    <div className="relative">
-                                                        <User size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                                                        <input required value={leadName} onChange={e => setLeadName(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Como podemos te chamar?" />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1">Seu Email <span className="text-slate-400 font-normal">(Opcional)</span></label>
-                                                    <div className="relative">
-                                                        <Mail size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                                                        <input type="email" value={leadEmail} onChange={e => setLeadEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="seu@email.com" />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1">Seu Telefone / WhatsApp</label>
-                                                    <div className="relative">
-                                                        <Phone size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                                                        <input 
-                                                            required 
-                                                            value={leadPhone} 
-                                                            onChange={e => {
-                                                                let val = e.target.value
-                                                                    .replace(/\D/g, '')
-                                                                    .replace(/^(\d{2})(\d)/, '($1) $2')
-                                                                    .replace(/(\d)(\d{4})$/, '$1-$2');
-                                                                setLeadPhone(val);
-                                                            }} 
-                                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" 
-                                                            placeholder="(00) 00000-0000"
-                                                            maxLength={15} 
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg mt-6 transition disabled:opacity-70">
-                                                    {isSubmitting ? 'Enviando...' : 'Enviar Contato'}
-                                                </button>
+                                                <div><label className="block text-sm font-bold text-slate-700 mb-1">Seu Nome</label><div className="relative"><User size={18} className="absolute left-3 top-3.5 text-slate-400" /><input required value={leadName} onChange={e => setLeadName(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Como podemos te chamar?" /></div></div>
+                                                <div><label className="block text-sm font-bold text-slate-700 mb-1">Seu Email <span className="text-slate-400 font-normal">(Opcional)</span></label><div className="relative"><Mail size={18} className="absolute left-3 top-3.5 text-slate-400" /><input type="email" value={leadEmail} onChange={e => setLeadEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="seu@email.com" /></div></div>
+                                                <div><label className="block text-sm font-bold text-slate-700 mb-1">Seu Telefone / WhatsApp</label><div className="relative"><Phone size={18} className="absolute left-3 top-3.5 text-slate-400" /><input required value={leadPhone} onChange={e => { let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2'); setLeadPhone(val); }} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" maxLength={15} /></div></div>
+                                                <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg mt-6 transition disabled:opacity-70">{isSubmitting ? 'Enviando...' : 'Enviar Contato'}</button>
                                             </form>
                                         </div>
                                     )}
