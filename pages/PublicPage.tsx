@@ -23,6 +23,10 @@ export const PublicPage: React.FC = () => {
     const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
     const [sortOption, setSortOption] = useState('date_desc'); 
 
+    // --- PAGINATION STATE ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showInterestForm, setShowInterestForm] = useState(false);
@@ -39,6 +43,11 @@ export const PublicPage: React.FC = () => {
             window.scrollTo(0, 0);
         }
     }, [selectedProperty]);
+
+    // Reset paginação quando filtros mudam
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, typeFilter, categoryFilter, subtypeFilter, cityFilter, priceMin, priceMax, bedroomsFilter, bathroomsFilter, selectedFeatures, sortOption, itemsPerPage]);
 
     const activeProperties = properties.filter(p => p.status === 'Active');
     const allCities = Array.from(new Set(activeProperties.map(p => p.city || '').filter(c => c !== ''))).sort();
@@ -79,6 +88,11 @@ export const PublicPage: React.FC = () => {
               default: return (Number(b.id) || 0) - (Number(a.id) || 0);
           }
       });
+
+    // Lógica de Paginação
+    const totalItems = filteredProperties.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const paginatedProperties = filteredProperties.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const parseCurrency = (value: string) => Number(value.replace(/\D/g, "")) / 100;
     const formatCurrency = (value: number | undefined) => {
@@ -238,12 +252,33 @@ export const PublicPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Diferenciais (Múltiplos)</label>
+                                        <select 
+                                            onChange={(e) => { addFeatureFilter(e.target.value); e.target.value = ""; }}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        >
+                                            <option value="">+ Adicionar filtro...</option>
+                                            {allFeatures.filter(f => !selectedFeatures.includes(f)).map(f => <option key={f} value={f}>{f}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Ordenar Por</label>
                                         <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
                                             <option value="date_desc">Mais Recentes</option>
                                             <option value="date_asc">Mais Antigos</option>
                                             <option value="price_asc">Menor Preço</option>
                                             <option value="price_desc">Maior Preço</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Imóveis por Página</label>
+                                        <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="w-full px-3 py-2 bg-white border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                                            <option value={20}>20 por página</option>
+                                            <option value={50}>50 por página</option>
+                                            <option value={100}>100 por página</option>
                                         </select>
                                     </div>
                                 </div>
@@ -272,12 +307,12 @@ export const PublicPage: React.FC = () => {
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center">
                                     Imóveis Disponíveis
-                                    <span className="ml-3 text-xs font-normal text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full">{filteredProperties.length} resultados</span>
+                                    <span className="ml-3 text-xs font-normal text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full">{totalItems} resultados</span>
                                 </h2>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                                {filteredProperties.map(property => (
+                                {paginatedProperties.map(property => (
                                     <div key={property.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl transition duration-300 group cursor-pointer flex flex-col h-full" onClick={() => handleViewDetails(property)}>
                                         <div className="h-56 md:h-64 overflow-hidden relative flex-shrink-0">
                                             <img src={property.images?.[0] || 'https://via.placeholder.com/400'} alt={property.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -299,11 +334,50 @@ export const PublicPage: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                             {filteredProperties.length === 0 && (
-                                 <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
-                                     <p className="text-slate-400">Nenhum imóvel encontrado com estes filtros.</p>
-                                 </div>
-                             )}
+                            
+                            {totalItems === 0 && (
+                                <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
+                                    <p className="text-slate-400">Nenhum imóvel encontrado com estes filtros.</p>
+                                </div>
+                            )}
+
+                            {/* PAGINATION NAVIGATION */}
+                            {totalPages > 1 && (
+                                <div className="mt-12 flex flex-col items-center justify-center space-y-4">
+                                    <div className="flex items-center space-x-2">
+                                        <button 
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            <ChevronLeft size={20} />
+                                        </button>
+
+                                        <div className="flex items-center space-x-1">
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                                <button
+                                                    key={page}
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`w-10 h-10 rounded-lg font-bold transition ${currentPage === page ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300'}`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button 
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            <ChevronRight size={20} />
+                                        </button>
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        Página {currentPage} de {totalPages}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </>
                 ) : (
