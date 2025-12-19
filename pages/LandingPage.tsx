@@ -19,6 +19,10 @@ export const LandingPage: React.FC = () => {
     };
 
     const handlePurchase = () => {
+        window.location.href = 'https://pay.hotmart.com/L103469151O';
+    };
+
+    const handleTrial = () => {
         setAuthTab('register');
         setCurrentView('DASHBOARD');
     };
@@ -73,11 +77,11 @@ export const LandingPage: React.FC = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
-                        <button onClick={handlePurchase} className="w-full sm:w-auto bg-blue-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-blue-500 transition shadow-2xl shadow-blue-600/40 flex items-center justify-center group">
+                        <button onClick={handleTrial} className="w-full sm:w-auto bg-blue-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-blue-500 transition shadow-2xl shadow-blue-600/40 flex items-center justify-center group">
                             Testar Agora <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                         </button>
-                        <button onClick={handleViewDemoSite} className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition flex items-center justify-center backdrop-blur-md">
-                            <Globe className="mr-2" size={18} /> Ver Site Demo
+                        <button onClick={handleTrial} className="text-blue-400 font-black hover:text-blue-300 transition text-lg bg-transparent border-none">
+                            Teste 7 dias grátis
                         </button>
                     </div>
 
