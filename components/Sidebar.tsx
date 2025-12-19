@@ -49,11 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       logout();
   }
 
-  // Gera a URL absoluta para o site público para garantir abertura em nova aba
-  const getPublicSiteUrl = () => {
-    const url = new URL(window.location.href);
-    url.search = '?mode=public';
-    return url.toString();
+  const handleOpenPublicSite = () => {
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set('mode', 'public');
+    window.open(url.toString(), '_blank');
+    onClose();
   };
 
   return (
@@ -148,15 +148,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 )}
 
                 <div className="pt-4 mt-4 border-t border-slate-100">
-                    <a
-                        href={getPublicSiteUrl()}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        onClick={handleOpenPublicSite}
                         className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors duration-200"
                     >
                         <Globe size={20} />
                         <span className="font-medium">Ver Site Público</span>
-                    </a>
+                    </button>
                 </div>
             </nav>
 
