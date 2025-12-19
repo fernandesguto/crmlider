@@ -17,6 +17,10 @@ export const LandingPage: React.FC = () => {
         setCurrentView('DASHBOARD');
     };
 
+    const handlePurchase = () => {
+        window.location.href = 'https://pay.hotmart.com/L103469151O';
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-white selection:bg-blue-500 selection:text-white overflow-x-hidden font-sans">
             {/* Efeitos de Luz de Fundo (Glows) - Ajustados para tons de azul */}
@@ -36,7 +40,7 @@ export const LandingPage: React.FC = () => {
                     
                     <div className="flex items-center space-x-6">
                         <button onClick={handleStart} className="text-sm font-bold text-slate-300 hover:text-white transition">Login</button>
-                        <button onClick={handleStart} className="bg-white text-slate-950 px-8 py-2.5 rounded-full text-sm font-black hover:bg-blue-600 hover:text-white transition-all shadow-lg shadow-white/5 transform hover:scale-105 active:scale-95">
+                        <button onClick={handlePurchase} className="bg-white text-slate-950 px-8 py-2.5 rounded-full text-sm font-black hover:bg-blue-600 hover:text-white transition-all shadow-lg shadow-white/5 transform hover:scale-105 active:scale-95">
                             Começar Agora
                         </button>
                     </div>
@@ -61,7 +65,7 @@ export const LandingPage: React.FC = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
-                        <button onClick={handleStart} className="w-full sm:w-auto bg-blue-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-blue-500 transition shadow-2xl shadow-blue-600/40 flex items-center justify-center group">
+                        <button onClick={handlePurchase} className="w-full sm:w-auto bg-blue-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-blue-500 transition shadow-2xl shadow-blue-600/40 flex items-center justify-center group">
                             Testar Agora <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                         </button>
                         <button className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition flex items-center justify-center backdrop-blur-md">
@@ -164,7 +168,7 @@ export const LandingPage: React.FC = () => {
                             </div>
                             
                             <div className="mt-8 flex justify-center lg:justify-start">
-                                <button onClick={handleStart} className="flex items-center space-x-3 text-blue-400 font-black hover:text-blue-300 transition text-lg group">
+                                <button onClick={handlePurchase} className="flex items-center space-x-3 text-blue-400 font-black hover:text-blue-300 transition text-lg group">
                                     <span>Ver Consultor em ação</span>
                                     <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
                                 </button>
@@ -333,7 +337,7 @@ export const LandingPage: React.FC = () => {
                                 </div>
                             </div>
                             
-                            <button onClick={handleStart} className="w-full mt-6 bg-white text-slate-950 py-4 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white transition-all shadow-xl flex items-center justify-center space-x-2">
+                            <button onClick={handlePurchase} className="w-full mt-6 bg-white text-slate-950 py-4 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white transition-all shadow-xl flex items-center justify-center space-x-2">
                                 <Sparkles size={18} />
                                 <span>Ver Plano de Marketing</span>
                             </button>
@@ -376,7 +380,7 @@ export const LandingPage: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <button onClick={handleStart} className="w-full bg-white text-slate-950 py-6 rounded-3xl font-black text-xl hover:bg-blue-600 hover:text-white transition-all shadow-2xl shadow-white/5 group-hover:scale-[1.03]">
+                            <button onClick={handlePurchase} className="w-full bg-white text-slate-950 py-6 rounded-3xl font-black text-xl hover:bg-blue-600 hover:text-white transition-all shadow-2xl shadow-white/5 group-hover:scale-[1.03]">
                                 Começar Agora
                             </button>
                         </div>
