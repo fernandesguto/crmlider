@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Building2, LogIn, AlertCircle, PlusCircle, Briefcase, Lock, CheckCircle, ArrowLeft, Phone, CreditCard } from 'lucide-react';
 import { clearCredentials, isHardcoded } from '../services/supabaseClient';
 
 export const Login: React.FC = () => {
-  const { login, registerAgency, isLoading, setCurrentView } = useApp();
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const { login, registerAgency, isLoading, setCurrentView, authTab, setAuthTab } = useApp();
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(authTab || 'login');
   
   // Login State
   const [email, setEmail] = useState('');
@@ -23,6 +23,11 @@ export const Login: React.FC = () => {
   const [isTrialExpired, setIsTrialExpired] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sincroniza o tab local com o do contexto na montagem
+  useEffect(() => {
+    if (authTab) setActiveTab(authTab);
+  }, [authTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,13 +109,13 @@ export const Login: React.FC = () => {
         {/* Tabs */}
         <div className="flex border-b border-slate-200">
             <button 
-                onClick={() => { setActiveTab('login'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
+                onClick={() => { setActiveTab('login'); setAuthTab('login'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
                 className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center space-x-2 transition ${activeTab === 'login' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <LogIn size={18} /> <span>Entrar</span>
             </button>
             <button 
-                onClick={() => { setActiveTab('register'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
+                onClick={() => { setActiveTab('register'); setAuthTab('register'); setError(''); setIsTrialExpired(false); setSuccessMsg(''); }}
                 className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center space-x-2 transition ${activeTab === 'register' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <PlusCircle size={18} /> <span>Nova Imobiliária</span>
@@ -186,7 +191,7 @@ export const Login: React.FC = () => {
                             <p className="text-slate-600 mb-4">{successMsg}</p>
                             <p className="text-sm text-slate-500 mb-6">Agora você pode fazer login e aproveitar seu período de teste.</p>
                             <button 
-                                onClick={() => setActiveTab('login')}
+                                onClick={() => { setActiveTab('login'); setAuthTab('login'); }}
                                 className="text-blue-600 font-bold hover:underline"
                             >
                                 Voltar para Login

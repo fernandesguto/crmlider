@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 
 export const LandingPage: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const { setCurrentView } = useApp();
+    const { setCurrentView, setAuthTab } = useApp();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -14,11 +14,13 @@ export const LandingPage: React.FC = () => {
     }, []);
 
     const handleStart = () => {
+        setAuthTab('login');
         setCurrentView('DASHBOARD');
     };
 
     const handlePurchase = () => {
-        window.location.href = 'https://pay.hotmart.com/L103469151O';
+        setAuthTab('register');
+        setCurrentView('DASHBOARD');
     };
 
     return (
