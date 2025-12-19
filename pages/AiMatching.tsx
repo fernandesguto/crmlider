@@ -349,10 +349,20 @@ export const AiMatching: React.FC = () => {
                                         onClick={() => setIsLeadDropdownOpen(!isLeadDropdownOpen)}
                                         className="w-full !bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer flex justify-between items-center h-[38px]"
                                     >
-                                        <span className={targetLeadId ? '!text-slate-900 font-medium' : 'text-slate-400'}>
+                                        <span className={targetLeadId ? '!text-slate-900 font-medium truncate flex-1 mr-2' : 'text-slate-400 flex-1 mr-2'}>
                                             {targetLeadId ? leads.find(l => l.id === targetLeadId)?.name : 'Selecione...'}
                                         </span>
-                                        <ChevronDown size={14} className="text-slate-400" />
+                                        <div className="flex items-center gap-1">
+                                            {targetLeadId && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setTargetLeadId(''); }}
+                                                    className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                            <ChevronDown size={14} className="text-slate-400" />
+                                        </div>
                                     </div>
                                     {isLeadDropdownOpen && (
                                         <div className="absolute top-full left-0 right-0 mt-1 !bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
@@ -387,10 +397,20 @@ export const AiMatching: React.FC = () => {
                                         onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)}
                                         className="w-full !bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer flex justify-between items-center h-[38px]"
                                     >
-                                        <span className={targetPropertyId ? '!text-slate-900 font-medium' : 'text-slate-400'}>
+                                        <span className={targetPropertyId ? '!text-slate-900 font-medium truncate flex-1 mr-2' : 'text-slate-400 flex-1 mr-2'}>
                                             {targetPropertyId ? properties.find(p => p.id === targetPropertyId)?.title : 'Selecione...'}
                                         </span>
-                                        <ChevronDown size={14} className="text-slate-400" />
+                                        <div className="flex items-center gap-1">
+                                            {targetPropertyId && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setTargetPropertyId(''); }}
+                                                    className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                            <ChevronDown size={14} className="text-slate-400" />
+                                        </div>
                                     </div>
                                     {isPropertyDropdownOpen && (
                                         <div className="absolute top-full left-0 right-0 mt-1 !bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
