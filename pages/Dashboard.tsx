@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList } from 'recharts';
 import { useApp } from '../context/AppContext';
@@ -6,7 +5,6 @@ import { Building2, Users, CheckCircle, TrendingUp, AlertTriangle, Calendar, Che
 import { PropertyType, LeadStatus, Lead, Property, Task, User as UserType } from '../types';
 
 const StatCard = ({ icon: Icon, label, value, subtext, color }: any) => {
-  // Ajuste para garantir contraste correto: Fundo sempre tom 100, Ícone mantém a cor original definida no widget
   const bgClass = color.replace(/-\d+/, '-100'); 
   const textClass = color.replace('bg-', 'text-');
 
@@ -37,7 +35,7 @@ const SimpleCalendar = ({ tasks, leads, properties, users, onToggleTask }: Simpl
     const [selectedDayData, setSelectedDayData] = useState<{date: Date, tasks: Task[]} | null>(null);
 
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay(); // 0 = Sunday
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay(); 
 
     const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
@@ -387,6 +385,7 @@ export const Dashboard: React.FC = () => {
       });
       if (financialRecords) {
         financialRecords.forEach(rec => {
+            // Added rec. prefix to fix "Cannot find name 'brokerId'" error
             if (rec.brokerId) brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.commission || 0);
         });
       }
@@ -432,7 +431,8 @@ export const Dashboard: React.FC = () => {
       { id: 'chart_vgv', label: 'Gráfico VGV Mensal', type: 'chart_large', default: true },
       { id: 'chart_leads_growth', label: 'Novos Leads por Mês', type: 'chart_med', default: true },
       { id: 'chart_funnel', label: 'Funil de Vendas', type: 'chart_med', default: true },
-      { id: 'chart_comm', label: 'Histórico Comissões', type: 'chart_med', default: true },
+      { id: 'chart_sales_comm', label: 'Histórico Comissões Vendas', type: 'chart_med', default: true },
+      { id: 'chart_rent_comm', label: 'Histórico Comissões Locação', type: 'chart_med', default: true },
       { id: 'chart_sources', label: 'Origem dos Leads', type: 'chart_med', default: true },
   ];
 
@@ -440,11 +440,18 @@ export const Dashboard: React.FC = () => {
       const saved = localStorage.getItem('imob_dashboard_widgets');
       if (saved) {
           const parsed = JSON.parse(saved);
-          if (!parsed.includes('chart_sources')) {
-              const updated = [...parsed, 'chart_sources'];
-              setActiveWidgetIds(updated);
-              localStorage.setItem('imob_dashboard_widgets', JSON.stringify(updated));
-          } else setActiveWidgetIds(parsed);
+          // Migração de widgets antigos para os novos divididos se necessário
+          let updated = [...parsed];
+          if (parsed.includes('chart_comm')) {
+              updated = updated.filter(id => id !== 'chart_comm');
+              if (!updated.includes('chart_sales_comm')) updated.push('chart_sales_comm');
+              if (!updated.includes('chart_rent_comm')) updated.push('chart_rent_comm');
+          }
+          if (!updated.includes('chart_sources')) {
+              updated.push('chart_sources');
+          }
+          setActiveWidgetIds(updated);
+          localStorage.setItem('imob_dashboard_widgets', JSON.stringify(updated));
       } else setActiveWidgetIds(WIDGETS.filter(w => w.default).map(w => w.id));
   }, []);
 
@@ -549,18 +556,47 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {isActive('chart_comm') && (
+          {isActive('chart_sales_comm') && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
-                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><TrendingUp className="mr-2 text-blue-600" size={20}/> Comissões (Vendas vs Locação)</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><DollarSign className="mr-2 text-blue-600" size={20}/> Comissões de Vendas</h3>
                 <ResponsiveContainer width="100%" height="85%">
-                    <AreaChart data={commissionsData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart data={commissionsData} margin={{ top: 35, right: 30, left: 10, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tickFormatter={(val) => `R$${val/1000}k`} />
+                        <YAxis tickFormatter={(val) => `R$${val/1000}k`} width={75} />
                         <Tooltip formatter={(val: number) => formatCurrency(val)} />
-                        <Legend />
-                        <Area type="monotone" dataKey="Vendas" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
-                        <Area type="monotone" dataKey="Locacao" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} />
+                        <Area type="monotone" dataKey="Vendas" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2}>
+                            <LabelList dataKey="Vendas" position="top" content={(props: any) => {
+                                const { x, y, value, index } = props;
+                                if (commissionsData && index === commissionsData.length - 1 && value > 0) {
+                                    return <text x={x} y={y - 15} fill="#3b82f6" fontSize={12} fontWeight="bold" textAnchor="middle">{currencyFormatter(value)}</text>;
+                                }
+                                return null;
+                            }} />
+                        </Area>
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+          )}
+
+          {isActive('chart_rent_comm') && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><Key className="mr-2 text-purple-600" size={20}/> Comissões de Locação</h3>
+                <ResponsiveContainer width="100%" height="85%">
+                    <AreaChart data={commissionsData} margin={{ top: 35, right: 30, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(val) => `R$${val/1000}k`} width={75} />
+                        <Tooltip formatter={(val: number) => formatCurrency(val)} />
+                        <Area type="monotone" dataKey="Locacao" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2}>
+                             <LabelList dataKey="Locacao" position="top" content={(props: any) => {
+                                const { x, y, value, index } = props;
+                                if (commissionsData && index === commissionsData.length - 1 && value > 0) {
+                                    return <text x={x} y={y - 15} fill="#8b5cf6" fontSize={12} fontWeight="bold" textAnchor="middle">{currencyFormatter(value)}</text>;
+                                }
+                                return null;
+                            }} />
+                        </Area>
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
