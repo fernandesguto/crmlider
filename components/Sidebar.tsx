@@ -10,12 +10,11 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { currentView, setCurrentView, currentUser, currentAgency, logout, leads, isSuperAdmin } = useApp();
+  const { currentView, setCurrentView, currentUser, currentAgency, logout, leads, isSuperAdmin, pendingAgenciesCount } = useApp();
 
   if (!currentUser) return null;
 
   // Conta apenas leads com status NOVO que NÃO tenham imóveis de interesse vinculados
-  // (Leads com interesses já estão em atendimento, mesmo que o status global ainda não tenha mudado)
   const newLeadsCount = leads ? leads.filter(l => {
       const hasInterests = l.interestedInPropertyIds && l.interestedInPropertyIds.length > 0;
       return l.status === LeadStatus.NEW && !hasInterests;
@@ -49,6 +48,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       e.preventDefault();
       logout();
   }
+
+  // Gera a URL absoluta para o site público para garantir abertura em nova aba
+  const getPublicSiteUrl = () => {
+    const url = new URL(window.location.href);
+    url.search = '?mode=public';
+    return url.toString();
+  };
 
   return (
     <>
@@ -122,24 +128,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Administração</p>
                         <button
                             onClick={() => { setCurrentView('SUPER_ADMIN'); onClose(); }}
-                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 ${
                                 currentView === 'SUPER_ADMIN' ? 'bg-red-600 text-white shadow-md' : 'text-red-600 hover:bg-red-50'
                             }`}
                         >
-                            <ShieldAlert size={20} />
-                            <span className="font-medium">Painel Master</span>
+                            <div className="flex items-center space-x-3">
+                                <ShieldAlert size={20} />
+                                <span className="font-medium">Painel Master</span>
+                            </div>
+                            {pendingAgenciesCount > 0 && (
+                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse ${
+                                    currentView === 'SUPER_ADMIN' ? 'bg-white text-red-600' : 'bg-red-600 text-white'
+                                }`}>
+                                    {pendingAgenciesCount}
+                                </span>
+                            )}
                         </button>
                     </div>
                 )}
 
                 <div className="pt-4 mt-4 border-t border-slate-100">
-                    <button
-                    onClick={() => { setCurrentView('PUBLIC'); onClose(); }}
-                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors duration-200"
+                    <a
+                        href={getPublicSiteUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors duration-200"
                     >
-                    <Globe size={20} />
-                    <span className="font-medium">Ver Site Público</span>
-                    </button>
+                        <Globe size={20} />
+                        <span className="font-medium">Ver Site Público</span>
+                    </a>
                 </div>
             </nav>
 
