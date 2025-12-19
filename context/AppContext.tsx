@@ -128,9 +128,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(true);
             try {
                 const params = new URLSearchParams(window.location.search);
-                const publicAgencyId = params.get('agency') || params.get('imob');
+                const pathParts = window.location.pathname.split('/').filter(Boolean);
+                
+                // Se houver algo no path (ex: /nome-ou-id), tenta usar como ID da agência
+                const publicAgencyId = params.get('agency') || params.get('imob') || pathParts[0];
 
-                if (publicAgencyId) {
+                if (publicAgencyId && publicAgencyId !== 'index.html') {
                     // Carrega agência para o site público
                     const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: publicAgencyId });
                     if (agencies && agencies.length > 0) {
@@ -338,6 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updateTask = async (task: Task) => {
         await DB.updateItem('tasks', task);
+        setProperties(prev => prev.map(p => p.id === task.propertyId ? { ...p } : p)); // Force reload UI
         setTasks(prev => prev.map(t => t.id === task.id ? task : t));
     };
 
