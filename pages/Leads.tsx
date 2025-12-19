@@ -34,6 +34,7 @@ export const Leads: React.FC = () => {
   
   const [formData, setFormData] = useState<any>({
     name: '', email: '', phone: '', type: 'Buyer', source: 'WhatsApp',
+    city: '', state: '',
     status: LeadStatus.NEW, interestedInPropertyIds: [], interests: [], notes: ''
   });
 
@@ -98,13 +99,19 @@ export const Leads: React.FC = () => {
   const handleOpenCreate = () => {
       setFormData({ 
           name: '', email: '', phone: '', type: 'Buyer', source: 'WhatsApp',
+          city: '', state: '',
           status: LeadStatus.NEW, interestedInPropertyIds: [], interests: [], notes: '' 
       });
       setIsEditing(false); setShowModal(true); setIsPropertyDropdownOpen(false);
   };
 
   const handleOpenEdit = (lead: any) => {
-      setFormData({ ...lead, interests: lead.interests || [] });
+      setFormData({ 
+          ...lead, 
+          interests: lead.interests || [],
+          city: lead.city || '',
+          state: lead.state || ''
+      });
       setIsEditing(true); setShowModal(true); setIsPropertyDropdownOpen(false);
   };
 
@@ -203,6 +210,7 @@ export const Leads: React.FC = () => {
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap ${lead.type === 'Buyer' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>{lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}</span>
                                 {lead.source && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><Share2 size={10} className="mr-1" /> {lead.source}</span>}
                                 {lead.phone && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><Phone size={10} className="mr-1" /> {lead.phone}</span>}
+                                {(lead.city || lead.state) && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><MapPin size={10} className="mr-1" /> {lead.city}{lead.city && lead.state ? ', ' : ''}{lead.state}</span>}
                             </div>
                         </div>
                     </div>
@@ -292,6 +300,8 @@ export const Leads: React.FC = () => {
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Telefone / WhatsApp</label><input required value={formData.phone || ''} onChange={e => { let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2'); setFormData({...formData, phone: val}); }} maxLength={15} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" /></div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Perfil do Cliente</label><select value={formData.type || 'Buyer'} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="Buyer">Comprador / Locatário</option><option value="Seller">Proprietário / Locador</option></select></div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Meio de Entrada (Origem)</label><select required value={formData.source || ''} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="">Selecione a origem...</option>{leadSources.map(src => <option key={src} value={src}>{src}</option>)}</select></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Cidade de Origem</label><input value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Ex: São Paulo" /></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Estado (UF)</label><input value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value.toUpperCase()})} maxLength={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Ex: SP" /></div>
               </div>
               <div className="border-t border-slate-100 pt-6">
                  <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center"><Building2 className="mr-2 text-blue-500" size={18} /> Vincular Imóveis de Interesse</label>
