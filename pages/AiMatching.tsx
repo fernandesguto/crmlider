@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, BrainCircuit, User, Building2, ArrowRight, MessageCircle, RefreshCw, AlertCircle, Percent, Clock, CheckCircle, XCircle, AlertTriangle, Search, Bot, BookOpen, Lock, ChevronDown, ChevronUp, MapPin, DollarSign, X, Filter, Settings2, PenTool, Copy, Check, FileText, TrendingUp, Share2, Wand2, Zap, Send, Megaphone, Target, MessageSquare } from 'lucide-react';
@@ -16,6 +17,12 @@ export const AiMatching: React.FC = () => {
     // Analysis Filters
     const [targetLeadId, setTargetLeadId] = useState('');
     const [targetPropertyId, setTargetPropertyId] = useState('');
+    
+    // Select Search States
+    const [leadSearchTerm, setLeadSearchTerm] = useState('');
+    const [propertySearchTerm, setPropertySearchTerm] = useState('');
+    const [isLeadDropdownOpen, setIsLeadDropdownOpen] = useState(false);
+    const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
 
     // Chat State
     const [chatQuery, setChatQuery] = useState('');
@@ -28,11 +35,25 @@ export const AiMatching: React.FC = () => {
     const [isMarketingLoading, setIsMarketingLoading] = useState(false);
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const leadDropdownRef = useRef<HTMLDivElement>(null);
+    const propertyDropdownRef = useRef<HTMLDivElement>(null);
 
     // Otimização de performance: Filtrar imóveis ativos apenas quando a lista de propriedades mudar
     const activeProperties = useMemo(() => properties.filter(p => p.status === 'Active'), [properties]);
     const selectedMarketingProp = useMemo(() => activeProperties.find(p => p.id === marketingPropertyId), [activeProperties, marketingPropertyId]);
+
+    const filteredLeadsForSelect = useMemo(() => {
+        return leads.filter(l => l.name.toLowerCase().includes(leadSearchTerm.toLowerCase()));
+    }, [leads, leadSearchTerm]);
+
+    const filteredPropertiesForSelect = useMemo(() => {
+        return activeProperties.filter(p => 
+            p.title.toLowerCase().includes(propertySearchTerm.toLowerCase()) ||
+            (p.code?.toString().includes(propertySearchTerm))
+        );
+    }, [activeProperties, propertySearchTerm]);
 
     // Chat Limit State
     const MAX_QUESTIONS_PER_DAY = 3;
@@ -67,24 +88,21 @@ export const AiMatching: React.FC = () => {
         checkChatLimit();
 
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            if (dropdownRef.current && !dropdownRef.current.contains(target)) {
                 setIsDropdownOpen(false);
+            }
+            if (leadDropdownRef.current && !leadDropdownRef.current.contains(target)) {
+                setIsLeadDropdownOpen(false);
+            }
+            if (propertyDropdownRef.current && !propertyDropdownRef.current.contains(target)) {
+                setIsPropertyDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
 
     }, [currentUser]);
-
-    const handleTargetLeadChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setTargetLeadId(e.target.value);
-        if (e.target.value) setTargetPropertyId('');
-    };
-
-    const handleTargetPropertyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setTargetPropertyId(e.target.value);
-        if (e.target.value) setTargetLeadId('');
-    };
 
     const handleRunAnalysis = async () => {
         if (isApiKeyMissing) {
@@ -311,25 +329,92 @@ export const AiMatching: React.FC = () => {
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
                         <div className="flex flex-col lg:flex-row gap-4 items-end">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 w-full">
-                                <div className={`relative p-3 rounded-xl border-2 transition ${targetLeadId ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50'}`}>
+                                <div className={`relative p-3 rounded-xl border-2 transition ${targetLeadId ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50'}`} ref={leadDropdownRef}>
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">1. Por Cliente</label>
-                                    <div className="relative">
-                                        <select className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none appearance-none" value={targetLeadId} onChange={handleTargetLeadChange}>
-                                            <option value="">Selecione...</option>
-                                            {leads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                                    <div 
+                                        onClick={() => setIsLeadDropdownOpen(!isLeadDropdownOpen)}
+                                        className="w-full !bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer flex justify-between items-center h-[38px]"
+                                    >
+                                        <span className={targetLeadId ? '!text-slate-900 font-medium' : 'text-slate-400'}>
+                                            {targetLeadId ? leads.find(l => l.id === targetLeadId)?.name : 'Selecione...'}
+                                        </span>
+                                        <ChevronDown size={14} className="text-slate-400" />
                                     </div>
+                                    {isLeadDropdownOpen && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 !bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="relative mb-2">
+                                                <Search className="absolute left-2 top-2.5 text-slate-400" size={14} />
+                                                <input 
+                                                    autoFocus
+                                                    type="text" 
+                                                    placeholder="Digitar nome..." 
+                                                    className="w-full pl-8 pr-2 py-1.5 border border-slate-100 rounded text-sm outline-none focus:ring-2 focus:ring-purple-500 transition !bg-white !text-slate-900"
+                                                    value={leadSearchTerm}
+                                                    onChange={e => setLeadSearchTerm(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                {filteredLeadsForSelect.length > 0 ? filteredLeadsForSelect.map(l => (
+                                                    <div 
+                                                        key={l.id} 
+                                                        onClick={() => { setTargetLeadId(l.id); setTargetPropertyId(''); setIsLeadDropdownOpen(false); setLeadSearchTerm(''); }}
+                                                        className="px-2 py-2 hover:bg-purple-50 rounded cursor-pointer text-sm font-medium !text-slate-700 transition"
+                                                    >
+                                                        {l.name}
+                                                    </div>
+                                                )) : <div className="p-4 text-center text-slate-400 text-xs italic">Nenhum cliente encontrado.</div>}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className={`relative p-3 rounded-xl border-2 transition ${targetPropertyId ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50'}`}>
+                                <div className={`relative p-3 rounded-xl border-2 transition ${targetPropertyId ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50'}`} ref={propertyDropdownRef}>
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">2. Por Imóvel</label>
-                                    <div className="relative">
-                                        <select className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none appearance-none" value={targetPropertyId} onChange={handleTargetPropertyChange}>
-                                            <option value="">Selecione...</option>
-                                            {activeProperties.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                                    <div 
+                                        onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)}
+                                        className="w-full !bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer flex justify-between items-center h-[38px]"
+                                    >
+                                        <span className={targetPropertyId ? '!text-slate-900 font-medium' : 'text-slate-400'}>
+                                            {targetPropertyId ? properties.find(p => p.id === targetPropertyId)?.title : 'Selecione...'}
+                                        </span>
+                                        <ChevronDown size={14} className="text-slate-400" />
                                     </div>
+                                    {isPropertyDropdownOpen && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 !bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="relative mb-2">
+                                                <Search className="absolute left-2 top-2.5 text-slate-400" size={14} />
+                                                <input 
+                                                    autoFocus
+                                                    type="text" 
+                                                    placeholder="Buscar imóvel por título ou código..." 
+                                                    className="w-full pl-8 pr-2 py-1.5 border border-slate-100 rounded text-sm outline-none focus:ring-2 focus:ring-purple-500 transition !bg-white !text-slate-900"
+                                                    value={propertySearchTerm}
+                                                    onChange={e => setPropertySearchTerm(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                {filteredPropertiesForSelect.length > 0 ? filteredPropertiesForSelect.map(p => (
+                                                    <div 
+                                                        key={p.id} 
+                                                        onClick={() => { setTargetPropertyId(p.id); setTargetLeadId(''); setIsPropertyDropdownOpen(false); setPropertySearchTerm(''); }}
+                                                        className="px-2 py-2 hover:bg-purple-50 rounded cursor-pointer flex items-center gap-3 transition border-b border-slate-50 last:border-0"
+                                                    >
+                                                        <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 border border-slate-200">
+                                                            <img src={p.images?.[0] || 'https://via.placeholder.com/50'} className="w-full h-full object-cover" alt="" />
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="text-sm font-bold !text-slate-800 truncate">{p.title}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 flex-shrink-0">
+                                                                    #{p.code?.toString().padStart(5, '0')}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase">{p.type}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )) : <div className="p-4 text-center text-slate-400 text-xs italic">Nenhum imóvel encontrado.</div>}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <button onClick={handleRunAnalysis} disabled={isDisabled} className={`h-[84px] px-6 rounded-xl font-bold shadow-lg transition flex flex-col items-center justify-center w-full lg:w-48 whitespace-nowrap ${isDisabled ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-purple-500/30 transform hover:-translate-y-1'}`}>
@@ -363,8 +448,8 @@ export const AiMatching: React.FC = () => {
                                                 return (
                                                     <div key={idx} className="p-6 hover:bg-slate-50/50 transition">
                                                         <div className="flex flex-col lg:flex-row gap-6">
-                                                            <div className="flex gap-4 w-full lg:w-1/3">
-                                                                <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200 bg-slate-100">
+                                                            <div className="flex gap-4 w-full lg:w-1/2">
+                                                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200 bg-slate-100 shadow-sm">
                                                                     <img src={property.images?.[0] || 'https://via.placeholder.com/400'} alt={property.title} className="w-full h-full object-cover" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
@@ -372,13 +457,18 @@ export const AiMatching: React.FC = () => {
                                                                         <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">{property.type}</span>
                                                                         {opp.matchScore >= 90 && <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase flex items-center"><Percent size={10} className="mr-1"/> {opp.matchScore}% Match</span>}
                                                                     </div>
-                                                                    <h4 className="font-bold text-slate-800 text-sm truncate">{property.title}</h4>
-                                                                    <p className="text-blue-600 font-bold text-base">{formatCurrency(property.price)}</p>
+                                                                    <h4 className="font-bold text-slate-800 text-sm md:text-base truncate flex items-center">
+                                                                        <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded mr-2 border border-slate-200 flex-shrink-0">
+                                                                            #{property.code?.toString().padStart(5, '0')}
+                                                                        </span>
+                                                                        {property.title}
+                                                                    </h4>
+                                                                    <p className="text-blue-600 font-bold text-base mt-1">{formatCurrency(property.price)}</p>
                                                                 </div>
                                                             </div>
                                                             <div className="flex-1 flex flex-col justify-center">
-                                                                <p className="text-xs font-bold text-purple-600 uppercase mb-1">Motivo</p>
-                                                                <p className="text-sm text-slate-600 italic">"{opp.reason}"</p>
+                                                                <p className="text-xs font-bold text-purple-600 uppercase mb-1">Motivo do Match</p>
+                                                                <p className="text-sm text-slate-600 italic leading-relaxed">"{opp.reason}"</p>
                                                             </div>
                                                             <div className="w-full lg:w-48 flex flex-col justify-center gap-2">
                                                                 {opp.status === 'accepted' ? (
