@@ -389,7 +389,7 @@ export const PublicPage: React.FC = () => {
                         </div>
 
                         <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row pb-20">
-                            <div className="flex-1 px-4 md:px-8">
+                            <div className="flex-1 min-w-0 px-4 md:px-8">
                                 <div className="mb-6">
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">{selectedProperty.type}</span>
@@ -422,7 +422,7 @@ export const PublicPage: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-10">
-                                        <div className="relative group overflow-hidden rounded-2xl bg-slate-100 aspect-video md:aspect-[16/9]">
+                                        <div className="relative group overflow-hidden rounded-2xl bg-slate-100 aspect-video md:aspect-[16/9] w-full">
                                             <img src={selectedProperty.images?.[currentImageIndex] || 'https://via.placeholder.com/800'} className="w-full h-full object-cover" alt={selectedProperty.title} />
                                             <Watermark sizeClasses="max-w-[200px] md:max-w-[350px] opacity-35" />
                                             {selectedProperty.images && selectedProperty.images.length > 1 && (
@@ -476,7 +476,7 @@ export const PublicPage: React.FC = () => {
                                             Tenho Interesse
                                         </button>
                                         {agency?.phone && (
-                                            <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-xl shadow-lg shadow-green-500/20 transition transform hover:scale-[1.02] flex items-center justify-center text-lg">
+                                            <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-500/20 transition transform hover:scale-[1.02] flex items-center justify-center text-lg">
                                                 <MessageCircle size={24} className="mr-2" /> WhatsApp Direto
                                             </a>
                                         )}
