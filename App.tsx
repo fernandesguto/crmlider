@@ -99,7 +99,7 @@ const MainLayout: React.FC = () => {
   }
 
   const taskLead = notificationTask && notificationTask.leadId ? (leads as Lead[]).find(l => l.id === notificationTask.leadId) : undefined;
-  const leadPropertyInterest = notificationLead && notificationLead.interestedInPropertyIds.length > 0 
+  const leadPropertyInterest = notificationLead && notificationLead.interestedInPropertyIds?.length > 0 
       ? (properties as Property[]).find(p => p.id === notificationLead.interestedInPropertyIds[0]) 
       : undefined;
 
