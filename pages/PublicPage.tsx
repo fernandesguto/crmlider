@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowRight, X, ChevronLeft, ChevronRight, CheckCircle, User, Filter, ArrowUpDown } from 'lucide-react';
+import { Building2, MapPin, BedDouble, Bath, Square, Phone, Mail, Search, ArrowRight, X, ChevronLeft, ChevronRight, CheckCircle, User, Filter, ArrowUpDown, MessageCircle } from 'lucide-react';
 import { PropertyType, Property, LeadStatus } from '../types';
 
 export const PublicPage: React.FC = () => {
@@ -115,14 +115,6 @@ export const PublicPage: React.FC = () => {
         }
     }
 
-    const handleGoBack = () => {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('mode');
-        url.searchParams.delete('imob');
-        url.searchParams.delete('agency');
-        window.location.search = ''; 
-    };
-
     const Watermark = ({ sizeClasses = "max-w-[150px] opacity-30" }: { sizeClasses?: string }) => {
         if (!agency?.logoUrl) return null;
         return (
@@ -130,6 +122,12 @@ export const PublicPage: React.FC = () => {
                 <img src={agency.logoUrl} alt="" className={`${sizeClasses} h-auto object-contain pointer-events-none`}/>
             </div>
         );
+    };
+
+    const getWhatsAppLink = () => {
+        if (!agency?.phone) return '#';
+        const phone = agency.phone.replace(/\D/g, '');
+        return `https://wa.me/55${phone}?text=${encodeURIComponent('Olá, vi seu site e gostaria de mais informações sobre os imóveis.')}`;
     };
 
     return (
@@ -147,7 +145,17 @@ export const PublicPage: React.FC = () => {
                         )}
                     </div>
                     <div>
-                         <button onClick={handleGoBack} className="text-sm font-medium text-slate-600 hover:text-blue-600 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition">Voltar ao Sistema</button>
+                        {agency?.phone && (
+                            <a 
+                                href={getWhatsAppLink()} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-full text-sm font-black flex items-center shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                            >
+                                <MessageCircle size={18} className="mr-2" />
+                                WhatsApp
+                            </a>
+                        )}
                     </div>
                 </div>
             </header>
