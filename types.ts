@@ -106,6 +106,8 @@ export interface Lead {
   phone: string;
   type: 'Buyer' | 'Seller';
   source?: string; // Origem do Lead (Indicação, Site, Instagram, etc)
+  city?: string; // Cidade de origem
+  state?: string; // Estado de origem
   status: LeadStatus; // Status Global (Calculado ou Manual)
   interestedInPropertyIds: string[]; // Mantido para busca rápida, mas o detalhe está em interests
   interests?: LeadInterest[]; // Nova estrutura detalhada
