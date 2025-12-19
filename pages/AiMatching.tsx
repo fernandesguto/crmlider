@@ -110,8 +110,13 @@ export const AiMatching: React.FC = () => {
             return;
         }
 
-        const isManualRun = targetLeadId || targetPropertyId;
-        if (!canRunToday && !isSuperAdmin && !isManualRun) return;
+        const isManualFilter = targetLeadId || targetPropertyId;
+        // Se estivermos na aba de matches e houver filtros, rodamos apenas matches.
+        // Mas se estivermos na aba de stale, SEMPRE rodamos stale.
+        const shouldRunStale = activeTab === 'stale' || (activeTab === 'matches' && !isManualFilter);
+        const shouldRunMatches = activeTab === 'matches';
+
+        if (!canRunToday && !isSuperAdmin && !isManualFilter) return;
 
         setIsLoading(true);
         try {
@@ -124,38 +129,47 @@ export const AiMatching: React.FC = () => {
                 propertiesToAnalyze = properties.filter(p => p.id === targetPropertyId);
             }
 
-            const promises: Promise<any>[] = [findOpportunities(leadsToAnalyze, propertiesToAnalyze)];
-            if (!isManualRun) {
+            const promises: Promise<any>[] = [];
+            
+            // Promise 0: Oportunidades
+            if (shouldRunMatches) {
+                promises.push(findOpportunities(leadsToAnalyze, propertiesToAnalyze));
+            } else {
+                promises.push(Promise.resolve(aiOpportunities));
+            }
+
+            // Promise 1: Recuperação
+            if (shouldRunStale) {
                 promises.push(analyzeStaleLeads(leads));
+            } else {
+                promises.push(Promise.resolve(aiStaleLeads));
             }
 
             const results = await Promise.all(promises);
-            const matchesRaw = results[0] || [];
-            const staleLeadsRaw = results[1] || [];
+            const matchesRaw = results[0];
+            const staleLeadsRaw = results[1];
 
-            // Validação de array antes de ordenar
-            const sortedMatches = Array.isArray(matchesRaw) 
-                ? [...matchesRaw]
-                    .sort((a: AiMatchOpportunity, b: AiMatchOpportunity) => (b.matchScore || 0) - (a.matchScore || 0))
-                    .map((m: AiMatchOpportunity) => ({ ...m, status: 'pending' as const }))
-                : [];
+            if (shouldRunMatches) {
+                const sortedMatches = Array.isArray(matchesRaw) 
+                    ? [...matchesRaw]
+                        .sort((a: AiMatchOpportunity, b: AiMatchOpportunity) => (b.matchScore || 0) - (a.matchScore || 0))
+                        .map((m: AiMatchOpportunity) => ({ ...m, status: 'pending' as const }))
+                    : [];
+                setAiOpportunities(sortedMatches);
+            }
             
-            setAiOpportunities(sortedMatches);
-            
-            if (staleLeadsRaw) {
-                // ORDENAÇÃO POR INATIVIDADE: Mais tempo parado (dias maiores) aparece primeiro
+            if (shouldRunStale) {
                 const sortedStale = Array.isArray(staleLeadsRaw)
                     ? [...staleLeadsRaw].sort((a: AiRecoveryOpportunity, b: AiRecoveryOpportunity) => (b.daysInactive || 0) - (a.daysInactive || 0))
                     : [];
                 setAiStaleLeads(sortedStale);
             }
             
-            if (!isManualRun) {
+            if (!isManualFilter) {
                 const today = new Date().toLocaleDateString('pt-BR');
                 localStorage.setItem(STORAGE_KEY_RUN, today);
                 setCanRunToday(false);
             }
-            setActiveTab('matches');
         } catch (error) {
             console.error("Erro ao gerar análises", error);
             alert("Ocorreu um erro ao processar os dados da IA. Tente novamente em instantes.");
@@ -534,7 +548,7 @@ export const AiMatching: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-6">
                         <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
                             <div className="relative w-full max-w-lg" ref={dropdownRef}>
-                                <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-4 py-3 outline-none transition shadow-sm cursor-pointer flex items-center justify-between">
+                                <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-full !bg-white border border-slate-300 text-slate-900 rounded-xl pl-4 pr-4 py-3 outline-none transition shadow-sm cursor-pointer flex items-center justify-between">
                                     <div className="flex items-center gap-3 overflow-hidden">
                                         <Building2 className={`text-slate-400 flex-shrink-0 ${selectedMarketingProp ? 'hidden' : 'block'}`} size={18} />
                                         {selectedMarketingProp ? (
@@ -551,14 +565,14 @@ export const AiMatching: React.FC = () => {
                                 </div>
 
                                 {isDropdownOpen && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="absolute top-full left-0 right-0 mt-2 !bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
                                         {activeProperties.length > 0 ? activeProperties.map(p => (
                                             <div key={p.id} onClick={() => { setMarketingPropertyId(p.id); setIsDropdownOpen(false); }} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition">
                                                 <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
                                                     <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-slate-800 truncate">{p.title}</p>
+                                                    <p className="text-sm font-bold !text-slate-800 truncate">{p.title}</p>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">#{p.code}</span>
                                                         <span className="text-xs text-slate-500 truncate">{p.neighborhood}</span>
@@ -619,7 +633,7 @@ export const AiMatching: React.FC = () => {
                                         <ul className="space-y-3">
                                             {marketingResult.targetAudience.map((t, i) => (
                                                 <li key={i} className="flex items-start text-sm text-purple-900 font-medium">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 mr-3 flex-shrink-0"></div>
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 mr-3 flex-shrink-0"></div>
                                                     {t}
                                                 </li>
                                             ))}
@@ -657,7 +671,7 @@ export const AiMatching: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-240px)]">
                         <div className="p-4 bg-white border-b border-slate-100">
                             <form onSubmit={handleChatSubmit} className="relative">
-                                <input type="text" value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} placeholder="Tire sua dúvida imobiliária aqui..." className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl py-4 pl-5 pr-14 outline-none focus:ring-2 focus:ring-blue-500 transition" disabled={isChatLoading} />
+                                <input type="text" value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} placeholder="Tire sua dúvida imobiliária aqui..." className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl py-4 pl-5 pr-14 outline-none focus:ring-2 focus:ring-blue-500 transition !bg-white !text-slate-900" disabled={isChatLoading} />
                                 <button type="submit" disabled={!chatQuery.trim() || isChatLoading} className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition disabled:opacity-50"><Send size={20} /></button>
                             </form>
                         </div>
