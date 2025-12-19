@@ -328,7 +328,7 @@ export const PublicPage: React.FC = () => {
                                     <p className="text-3xl md:text-5xl font-black text-blue-600 mb-4 tracking-tight">{formatPriceDisplay(selectedProperty.price)}</p>
                                     <div className="flex items-center text-slate-600 text-sm md:text-base mb-8">
                                         <MapPin size={18} className="mr-1.5 text-slate-400" />
-                                        {selectedProperty.address} - {selectedProperty.neighborhood}, {selectedProperty.city} - {selectedProperty.state}
+                                        {selectedProperty.neighborhood}, {selectedProperty.city} - {selectedProperty.state}
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-3 md:gap-6 py-6 border-y border-slate-100 mb-8">
@@ -490,7 +490,7 @@ export const PublicPage: React.FC = () => {
                         <h4 className="text-slate-900 font-black uppercase text-xs tracking-widest mb-6">Localização</h4>
                         <p className="text-sm flex items-start leading-relaxed">
                             {agency?.address ? (
-                                <><MapPin size={18} className="mr-3 mt-0.5 text-blue-600 flex-shrink-0" /><span>{agency.address}<br/>{agency.city || ''}</span></>
+                                <><MapPin size={18} className="mr-3 mt-0.5 text-blue-600 flex-shrink-0" /><span>{agency.city || ''}</span></>
                             ) : "Atendemos em toda a região."}
                         </p>
                     </div>
