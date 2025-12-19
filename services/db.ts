@@ -12,6 +12,10 @@ const getSqlSuggestion = (table: string, errorMsg: string) => {
             return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalEndDate" timestamp with time zone;`;
     } else if (msg.includes('source')) {
             return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS source text;`;
+    } else if (table === 'leads' && msg.includes('city')) {
+            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS city text;`;
+    } else if (table === 'leads' && msg.includes('state')) {
+            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS state text;`;
     } else if (table === 'agencies' && msg.includes('city')) {
             return `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS city text;`;
     } else if (table === 'agencies' && msg.includes('email')) {
