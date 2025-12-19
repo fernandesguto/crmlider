@@ -191,14 +191,14 @@ export const PublicPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
             <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-slate-200">
-                <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 flex justify-between items-center">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                         {agency?.logoUrl ? (
-                            <img src={agency.logoUrl} className="h-16 md:h-24 w-auto object-contain" alt={agency.name} />
+                            <img src={agency.logoUrl} className="h-12 md:h-16 w-auto object-contain" alt={agency.name} />
                         ) : (
-                            <div className="flex items-center space-x-3 text-slate-800">
-                                <Building2 size={36} />
-                                <span className="text-3xl md:text-4xl font-bold tracking-tight">{agency?.name || 'ImobERP'}</span>
+                            <div className="flex items-center space-x-2 text-slate-800">
+                                <Building2 size={28} />
+                                <span className="text-xl md:text-2xl font-bold tracking-tight">{agency?.name || 'ImobERP'}</span>
                             </div>
                         )}
                     </div>
@@ -208,9 +208,9 @@ export const PublicPage: React.FC = () => {
                                 href={getWhatsAppLink()} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="bg-green-600 hover:bg-green-700 text-white px-5 md:px-8 py-3 md:py-4 rounded-full text-sm md:text-base font-black flex items-center shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-black flex items-center shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
                             >
-                                <MessageCircle size={22} className="mr-2 md:mr-3" />
+                                <MessageCircle size={18} className="mr-1.5 md:mr-2" />
                                 WhatsApp
                             </a>
                         )}
