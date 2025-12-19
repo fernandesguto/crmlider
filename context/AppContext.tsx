@@ -55,6 +55,8 @@ interface AppContextType {
     aiStaleLeads: AiRecoveryOpportunity[];
     setAiStaleLeads: (opps: AiRecoveryOpportunity[]) => void;
     isSuperAdmin: boolean;
+    pendingAgenciesCount: number;
+    refreshPendingCount: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -82,6 +84,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [darkMode, setDarkMode] = useState(false);
     const [notificationTask, setNotificationTask] = useState<Task | null>(null);
     const [notificationLead, setNotificationLead] = useState<Lead | null>(null);
+    const [pendingAgenciesCount, setPendingAgenciesCount] = useState(0);
+
+    const isSuperAdmin = currentUser?.email === 'fernandes_guto@hotmail.com';
 
     const leadsRef = useRef(leads);
     useEffect(() => { leadsRef.current = leads; }, [leads]);
@@ -102,10 +107,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return cleanLead;
     };
 
+    const refreshPendingCount = async () => {
+        if (!isSuperAdmin) return;
+        try {
+            const allAgencies = await DB.getAll<Agency>('agencies');
+            const pending = allAgencies.filter(a => !a.isApproved).length;
+            setPendingAgenciesCount(pending);
+        } catch (e) {
+            console.error("Erro ao contar agências pendentes");
+        }
+    };
+
     useEffect(() => {
         const init = async () => {
             setIsLoading(true);
             try {
+                // Verificar se é modo público pela URL
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('mode') === 'public') {
+                    setCurrentView('PUBLIC');
+                }
+
                 const savedColor = localStorage.getItem('imob_theme_color');
                 const savedDark = localStorage.getItem('imob_dark_mode');
                 if (savedColor) setThemeColor(savedColor);
@@ -139,6 +161,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
         init();
     }, []);
+
+    useEffect(() => {
+        if (isSuperAdmin) {
+            refreshPendingCount();
+        }
+    }, [isSuperAdmin]);
 
     useEffect(() => {
         localStorage.setItem('imob_theme_color', themeColor);
@@ -179,7 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const agency = agencies[0];
                 if (!agency.isApproved) {
                     if (agency.trialExpiresAt && new Date() > new Date(agency.trialExpiresAt)) {
-                        return { success: false, message: 'Período de teste expirado.' };
+                        return { success: false, message: 'PERÍODO DE TESTE EXPIRADO' };
                     }
                 }
                 localStorage.setItem('imob_user_id', user.id);
@@ -205,12 +233,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const agencyId = uuid();
             const userId = uuid();
             const trialDate = new Date();
-            trialDate.setDate(trialDate.getDate() + 3);
+            trialDate.setDate(trialDate.getDate() + 7); // Alterado para 7 dias
             const newAgency: Agency = { id: agencyId, name: agencyName, createdAt: new Date().toISOString(), isApproved: false, trialExpiresAt: trialDate.toISOString(), phone: phone };
             const newAdmin: User = { id: userId, name: adminName, email, password, phone, role: 'Admin', agencyId, avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=random`, loginCount: 0 };
             await DB.addItem('agencies', newAgency);
             await DB.addItem('users', newAdmin);
-            return { success: true, message: 'Conta criada! Você tem 3 dias de teste.' };
+            return { success: true, message: 'Conta criada! Você tem 7 dias de teste grátis.' };
         } catch (e: any) {
              return { success: false, message: 'Erro ao criar conta. Verifique os dados.' };
         }
@@ -354,7 +382,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             createAgencyUser, updateUser, deleteUser, updateAgency,
             loadMessages, addMessage, notificationTask, notificationLead, dismissNotification,
             aiOpportunities, setAiOpportunities, aiStaleLeads, setAiStaleLeads,
-            isSuperAdmin: currentUser?.email === 'fernandes_guto@hotmail.com'
+            isSuperAdmin, pendingAgenciesCount, refreshPendingCount
         }}>
             {children}
         </AppContext.Provider>
