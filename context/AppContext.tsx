@@ -8,6 +8,7 @@ const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2
 interface AppContextType {
     currentUser: User | null;
     currentAgency: Agency | null;
+    publicAgency: Agency | null; // Agência sendo visualizada publicamente
     properties: Property[];
     leads: Lead[];
     tasks: Task[];
@@ -72,6 +73,7 @@ export const useApp = () => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentAgency, setCurrentAgency] = useState<Agency | null>(null);
+    const [publicAgency, setPublicAgency] = useState<Agency | null>(null);
     const [currentView, setCurrentView] = useState<ViewState>('LANDING');
     const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
     const [isLoading, setIsLoading] = useState(true);
@@ -125,10 +127,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const init = async () => {
             setIsLoading(true);
             try {
-                // Verificar se é modo público pela URL
                 const params = new URLSearchParams(window.location.search);
-                if (params.get('mode') === 'public') {
-                    setCurrentView('PUBLIC');
+                const publicAgencyId = params.get('agency') || params.get('imob');
+
+                if (publicAgencyId) {
+                    // Carrega agência para o site público
+                    const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: publicAgencyId });
+                    if (agencies && agencies.length > 0) {
+                        setPublicAgency(agencies[0]);
+                        const props = await DB.getAll<Property>('properties', { column: 'agencyId', value: publicAgencyId });
+                        setProperties(props);
+                        setCurrentView('PUBLIC');
+                    }
                 }
 
                 const savedColor = localStorage.getItem('imob_theme_color');
@@ -145,7 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 await DB.seedDatabase();
 
                 const savedUserId = localStorage.getItem('imob_user_id');
-                if (savedUserId) {
+                if (savedUserId && !publicAgencyId) {
                     const usrs = await DB.getAll<User>('users', { column: 'id', value: savedUserId });
                     if (usrs && usrs.length > 0) {
                         const user = usrs[0];
@@ -177,7 +187,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [themeColor, darkMode]);
 
     useEffect(() => {
-        if (!currentUser || !currentAgency) return;
+        // Se estiver no modo público, não tenta carregar dados da agência logada
+        if (currentView === 'PUBLIC' || !currentUser || !currentAgency) return;
         const loadData = async () => {
             const agencyId = currentAgency.id;
             try {
@@ -198,7 +209,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
         };
         loadData();
-    }, [currentUser, currentAgency]);
+    }, [currentUser, currentAgency, currentView]);
 
     const login = async (email: string, password: string): Promise<OperationResult> => {
         try {
@@ -376,7 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return (
         <AppContext.Provider value={{
-            currentUser, currentAgency, properties, leads, tasks, users, messages, financialRecords,
+            currentUser, currentAgency, publicAgency, properties, leads, tasks, users, messages, financialRecords,
             currentView, setCurrentView, authTab, setAuthTab, isLoading, themeColor, setThemeColor, darkMode, setDarkMode,
             login, logout, registerAgency, setAgency: setCurrentAgency,
             addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, renewRental, getNextPropertyCode,
