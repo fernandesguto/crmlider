@@ -79,8 +79,11 @@ const ThemeController = () => {
 }
 
 const MainLayout: React.FC = () => {
-  const { currentView, currentUser, notificationTask, notificationLead, dismissNotification, toggleTaskCompletion, leads, properties, setCurrentView, currentAgency } = useApp();
+  const { currentView, currentUser, notificationTask, notificationLead, dismissNotification, toggleTaskCompletion, leads, properties, setCurrentView, currentAgency, isLoading } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Aguarda a inicialização do AppContext para determinar a view correta sem flickers
+  if (isLoading) return null;
 
   if (currentView === 'LANDING') return <LandingPage />;
 
