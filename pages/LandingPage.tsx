@@ -23,6 +23,12 @@ export const LandingPage: React.FC = () => {
         setCurrentView('DASHBOARD');
     };
 
+    const handleViewDemoSite = () => {
+        const url = new URL(window.location.href);
+        url.search = '?mode=public';
+        window.open(url.toString(), '_blank');
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-white selection:bg-blue-500 selection:text-white overflow-x-hidden font-sans">
             {/* Efeitos de Luz de Fundo (Glows) - Ajustados para tons de azul */}
@@ -70,8 +76,8 @@ export const LandingPage: React.FC = () => {
                         <button onClick={handlePurchase} className="w-full sm:w-auto bg-blue-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-blue-500 transition shadow-2xl shadow-blue-600/40 flex items-center justify-center group">
                             Testar Agora <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                         </button>
-                        <button className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition flex items-center justify-center backdrop-blur-md">
-                            <Play className="mr-2 fill-current" size={18} /> Ver Demo
+                        <button onClick={handleViewDemoSite} className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition flex items-center justify-center backdrop-blur-md">
+                            <Globe className="mr-2" size={18} /> Ver Site Demo
                         </button>
                     </div>
 
@@ -239,9 +245,12 @@ export const LandingPage: React.FC = () => {
                         </div>
 
                         {/* 8. Site Público */}
-                        <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 hover:bg-white/[0.08] transition group flex flex-col">
+                        <div 
+                            onClick={handleViewDemoSite}
+                            className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 hover:bg-white/[0.08] transition group flex flex-col cursor-pointer border-blue-500/30"
+                        >
                             <Globe size={32} className="text-sky-400 mb-6" />
-                            <h3 className="text-xl font-bold mb-3">Site Exclusivo</h3>
+                            <h3 className="text-xl font-bold mb-3 flex items-center">Site Exclusivo <ArrowRight size={16} className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity" /></h3>
                             <p className="text-slate-400 text-sm leading-relaxed flex-1">Sua imobiliária ganha um portal público automático para captar leads e exibir seu estoque online.</p>
                         </div>
                     </div>
