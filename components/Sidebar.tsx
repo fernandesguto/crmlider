@@ -51,9 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const handleOpenPublicSite = () => {
     if (!currentAgency) return;
-    const url = new URL(window.location.origin + window.location.pathname);
-    url.searchParams.set('imob', currentAgency.id);
-    window.open(url.toString(), '_blank');
+    const url = window.location.origin + '/' + currentAgency.id;
+    window.open(url, '_blank');
     onClose();
   };
 
