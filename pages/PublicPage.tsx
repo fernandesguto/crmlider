@@ -308,16 +308,14 @@ export const PublicPage: React.FC = () => {
                     </>
                 ) : (
                     <div className="bg-white min-h-screen animate-in fade-in duration-300 flex flex-col">
-                        <div className="bg-slate-50 border-b border-slate-200 sticky top-[72px] md:top-[80px] z-30">
-                            <div className="max-w-7xl mx-auto px-4 py-5 flex items-center">
-                                <button onClick={handleBackToList} className="flex items-center text-slate-600 hover:text-blue-600 font-bold transition text-sm">
-                                    <ArrowLeft size={20} className="mr-2" /> Voltar para a lista
-                                </button>
-                            </div>
+                        <div className="max-w-7xl mx-auto w-full px-4 py-6">
+                            <button onClick={handleBackToList} className="flex items-center text-slate-500 hover:text-blue-600 font-bold transition text-sm">
+                                <ArrowLeft size={20} className="mr-2" /> Voltar para a lista
+                            </button>
                         </div>
 
-                        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row">
-                            <div className="flex-1 px-4 py-10 md:px-8 md:py-14">
+                        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row pb-20">
+                            <div className="flex-1 px-4 md:px-8">
                                 <div className="mb-6">
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">{selectedProperty.type}</span>
@@ -395,7 +393,7 @@ export const PublicPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="w-full lg:w-[450px] p-4 md:p-8 lg:border-l lg:border-slate-200 bg-white sticky top-[120px] h-fit">
+                            <div className="w-full lg:w-[450px] p-4 md:p-8 lg:border-l lg:border-slate-200 bg-white sticky top-[100px] h-fit">
                                 {!showInterestForm ? (
                                     <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm">
                                         <h3 className="text-xl font-bold text-slate-900 mb-2">Gostou deste imóvel?</h3>
