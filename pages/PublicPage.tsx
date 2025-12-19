@@ -213,7 +213,7 @@ export const PublicPage: React.FC = () => {
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Subtipo</label>
                                         <select value={subtypeFilter} onChange={(e) => setSubtypeFilter(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">Todas</option>
+                                            <option value="">Todos</option>
                                             {['Casa', 'Apartamento', 'Sala', 'Loja', 'Prédio', 'Galpão', 'Terreno', 'Chácara'].map(s => <option key={s} value={s}>{s}</option>)}
                                         </select>
                                     </div>
@@ -309,7 +309,7 @@ export const PublicPage: React.FC = () => {
                 ) : (
                     <div className="bg-white min-h-screen animate-in fade-in duration-300 flex flex-col">
                         <div className="bg-slate-50 border-b border-slate-200 sticky top-[72px] md:top-[80px] z-30">
-                            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center">
+                            <div className="max-w-7xl mx-auto px-4 py-5 flex items-center">
                                 <button onClick={handleBackToList} className="flex items-center text-slate-600 hover:text-blue-600 font-bold transition text-sm">
                                     <ArrowLeft size={20} className="mr-2" /> Voltar para a lista
                                 </button>
@@ -317,7 +317,7 @@ export const PublicPage: React.FC = () => {
                         </div>
 
                         <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row">
-                            <div className="flex-1 p-4 md:p-8">
+                            <div className="flex-1 px-4 py-10 md:px-8 md:py-14">
                                 <div className="mb-6">
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">{selectedProperty.type}</span>
