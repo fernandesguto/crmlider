@@ -31,6 +31,9 @@ export const PublicPage: React.FC = () => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showInterestForm, setShowInterestForm] = useState(false);
     
+    // --- LIGHTBOX STATE ---
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    
     const [leadName, setLeadName] = useState('');
     const [leadEmail, setLeadEmail] = useState('');
     const [leadPhone, setLeadPhone] = useState('');
@@ -48,6 +51,18 @@ export const PublicPage: React.FC = () => {
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, typeFilter, categoryFilter, subtypeFilter, cityFilter, priceMin, priceMax, bedroomsFilter, bathroomsFilter, selectedFeatures, sortOption, itemsPerPage]);
+
+    // Atalhos de teclado para Lightbox
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!lightboxOpen) return;
+            if (e.key === 'Escape') setLightboxOpen(false);
+            if (e.key === 'ArrowRight') nextImage();
+            if (e.key === 'ArrowLeft') prevImage();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [lightboxOpen, selectedProperty]);
 
     const activeProperties = properties.filter(p => p.status === 'Active');
     const allCities = Array.from(new Set(activeProperties.map(p => p.city || '').filter(c => c !== ''))).sort();
@@ -115,11 +130,18 @@ export const PublicPage: React.FC = () => {
 
     const handleBackToList = () => {
         setSelectedProperty(null);
+        setLightboxOpen(false);
         window.scrollTo(0, 0);
     };
 
-    const nextImage = () => { if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev + 1) % selectedProperty.images.length); };
-    const prevImage = () => { if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev - 1 + selectedProperty.images.length) % selectedProperty.images.length); };
+    const nextImage = (e?: React.MouseEvent) => { 
+        e?.stopPropagation();
+        if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev + 1) % selectedProperty.images.length); 
+    };
+    const prevImage = (e?: React.MouseEvent) => { 
+        e?.stopPropagation();
+        if (selectedProperty?.images) setCurrentImageIndex((prev) => (prev - 1 + selectedProperty.images.length) % selectedProperty.images.length); 
+    };
 
     const handleSubmitInterest = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -422,9 +444,15 @@ export const PublicPage: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-10">
-                                        <div className="relative group overflow-hidden rounded-2xl bg-slate-100 aspect-video md:aspect-[16/9] w-full">
-                                            <img src={selectedProperty.images?.[currentImageIndex] || 'https://via.placeholder.com/800'} className="w-full h-full object-cover" alt={selectedProperty.title} />
+                                        <div 
+                                            onClick={() => setLightboxOpen(true)}
+                                            className="relative group overflow-hidden rounded-2xl bg-slate-100 aspect-video md:aspect-[16/9] w-full cursor-pointer"
+                                        >
+                                            <img src={selectedProperty.images?.[currentImageIndex] || 'https://via.placeholder.com/800'} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" alt={selectedProperty.title} />
                                             <Watermark sizeClasses="max-w-[200px] md:max-w-[350px] opacity-35" />
+                                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                                <span className="bg-white/80 text-slate-800 px-4 py-2 rounded-full font-bold shadow-lg text-sm flex items-center"><Search className="mr-2" size={16}/> Ampliar Foto</span>
+                                            </div>
                                             {selectedProperty.images && selectedProperty.images.length > 1 && (
                                                 <>
                                                     <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-md transition z-20"><ChevronLeft size={28}/></button>
@@ -535,6 +563,53 @@ export const PublicPage: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            {/* LIGHTBOX COMPONENT */}
+            {lightboxOpen && selectedProperty && (
+                <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <button 
+                        onClick={() => setLightboxOpen(false)} 
+                        className="absolute top-6 right-6 text-white hover:text-slate-300 transition-all hover:rotate-90 z-[110]"
+                        title="Fechar (Esc)"
+                    >
+                        <X size={36} />
+                    </button>
+                    
+                    <button 
+                        onClick={prevImage} 
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-blue-400 p-4 transition-colors z-[110] hidden md:block"
+                    >
+                        <ChevronLeft size={60} />
+                    </button>
+                    
+                    <div className="max-w-7xl max-h-screen flex flex-col items-center justify-center relative">
+                        <img 
+                            src={selectedProperty.images?.[currentImageIndex]} 
+                            className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-sm animate-in zoom-in-95 duration-500" 
+                            alt=""
+                        />
+                        <div className="mt-4 flex flex-col items-center">
+                            <span className="text-white font-bold bg-black/40 px-4 py-1.5 rounded-full text-sm backdrop-blur-md border border-white/10">
+                                {currentImageIndex + 1} / {selectedProperty.images?.length}
+                            </span>
+                            <p className="text-slate-400 text-xs mt-3 font-medium hidden md:block">{selectedProperty.title}</p>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        onClick={nextImage} 
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-blue-400 p-4 transition-colors z-[110] hidden md:block"
+                    >
+                        <ChevronRight size={60} />
+                    </button>
+
+                    {/* Controles Mobile */}
+                    <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-12 md:hidden z-[110]">
+                        <button onClick={prevImage} className="text-white p-4 bg-white/10 rounded-full backdrop-blur-sm"><ChevronLeft size={32}/></button>
+                        <button onClick={nextImage} className="text-white p-4 bg-white/10 rounded-full backdrop-blur-sm"><ChevronRight size={32}/></button>
+                    </div>
+                </div>
+            )}
 
             <footer className="bg-white text-slate-600 py-12 px-4 md:px-6 border-t border-slate-200 mt-auto">
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12">
