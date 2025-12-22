@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, BrainCircuit, User, Building2, ArrowRight, MessageCircle, RefreshCw, AlertCircle, Percent, Clock, CheckCircle, XCircle, AlertTriangle, Search, Bot, BookOpen, Lock, ChevronDown, ChevronUp, MapPin, DollarSign, X, Filter, Settings2, PenTool, Copy, Check, FileText, TrendingUp, Share2, Wand2, Zap, Send, Megaphone, Target, MessageSquare } from 'lucide-react';
@@ -586,8 +585,21 @@ export const AiMatching: React.FC = () => {
 
                                 {isDropdownOpen && (
                                     <div className="absolute top-full left-0 right-0 mt-2 !bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
-                                        {activeProperties.length > 0 ? activeProperties.map(p => (
-                                            <div key={p.id} onClick={() => { setMarketingPropertyId(p.id); setIsDropdownOpen(false); }} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition">
+                                        <div className="p-2 border-b border-slate-50 sticky top-0 bg-white z-10">
+                                            <div className="relative">
+                                                <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                                                <input 
+                                                    autoFocus
+                                                    type="text" 
+                                                    placeholder="Pesquisar imóvel..." 
+                                                    className="w-full pl-8 pr-2 py-2 border border-slate-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500 transition !bg-white !text-slate-900"
+                                                    value={propertySearchTerm}
+                                                    onChange={e => setPropertySearchTerm(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        {filteredPropertiesForSelect.length > 0 ? filteredPropertiesForSelect.map(p => (
+                                            <div key={p.id} onClick={() => { setMarketingPropertyId(p.id); setIsDropdownOpen(false); setPropertySearchTerm(''); }} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition">
                                                 <div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
                                                     <img src={p.images?.[0] || 'https://via.placeholder.com/100'} alt="" className="w-full h-full object-cover" />
                                                 </div>
@@ -600,7 +612,7 @@ export const AiMatching: React.FC = () => {
                                                 </div>
                                                 {marketingPropertyId === p.id && <Check size={16} className="text-green-600 mr-1" />}
                                             </div>
-                                        )) : <div className="p-4 text-center text-slate-500 text-sm">Nenhum imóvel ativo.</div>}
+                                        )) : <div className="p-4 text-center text-slate-500 text-sm">Nenhum imóvel compatível.</div>}
                                     </div>
                                 )}
                             </div>
