@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Property, PropertyType, LeadStatus } from '../types';
-// Added MessageCircle and Calendar to imports
-import { Plus, Trash2, MapPin, BedDouble, Bath, Square, ImageIcon, ArrowLeft, User, Phone, Edit, X, ChevronLeft, ChevronRight, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, ArrowUpDown, LayoutGrid, List, MessageCircle, Calendar } from 'lucide-react';
+import { Plus, Trash2, MapPin, BedDouble, Bath, Square, ImageIcon, ArrowLeft, User, Phone, Edit, X, ChevronLeft, ChevronRight, ShieldCheck, FileText, CheckCircle, DollarSign, RotateCcw, Search, Filter, Key, Sparkles, Loader2, Check, ChevronDown, Star, FileDown, ArrowUpDown, LayoutGrid, List, MessageCircle, Calendar, Users } from 'lucide-react';
 import { uploadImage } from '../services/db';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { generatePropertyDescription } from '../services/geminiService';
@@ -17,7 +16,6 @@ export const Properties: React.FC = () => {
   const [hasGeneratedDescription, setHasGeneratedDescription] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
-  // Novo estado para alternar visualização
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +48,7 @@ export const Properties: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const [searchText, setSearchTerm] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
@@ -62,6 +60,10 @@ export const Properties: React.FC = () => {
   const [bedroomsFilter, setBedroomsFilter] = useState<string>('');
   const [bathroomsFilter, setBathroomsFilter] = useState<string>('');
   const [sortOption, setSortOption] = useState<string>('date_desc');
+
+  // Estado para adicionar lead nos detalhes
+  const [isAddingLeadInDetails, setIsAddingLeadInDetails] = useState(false);
+  const [leadInDetailsSearch, setLeadInDetailsSearch] = useState('');
 
   const [formData, setFormData] = useState<Partial<Property>>({
     title: '', type: PropertyType.SALE, category: 'Residencial', subtype: 'Casa', price: 0,
@@ -236,7 +238,7 @@ export const Properties: React.FC = () => {
           doc.setFont('helvetica', 'normal');
           const descLines = doc.splitTextToSize(selectedProperty.description || "Sem descrição.", contentWidth);
           const maxDescLines = 15;
-          const displayLines = descLines.slice(0, maxDescLines);
+          const displayLines = doc.splitTextToSize(selectedProperty.description || "Sem descrição.", contentWidth).slice(0, maxDescLines);
           doc.text(displayLines, margin, yPos);
           yPos += (displayLines.length * 4) + 8;
           if (selectedProperty.features && selectedProperty.features.length > 0) {
@@ -524,6 +526,13 @@ export const Properties: React.FC = () => {
         }
   };
 
+  const handleLinkLeadInDetails = async (leadId: string) => {
+      if (!selectedProperty) return;
+      await updateLeadInterestStatus(leadId, selectedProperty.id, LeadStatus.NEW);
+      setIsAddingLeadInDetails(false);
+      setLeadInDetailsSearch('');
+  };
+
   const renderForm = () => (
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 max-w-4xl mx-auto my-8 animate-in fade-in duration-300">
         <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
@@ -623,6 +632,13 @@ export const Properties: React.FC = () => {
     if (showForm) return <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">{renderForm()}</div>;
     const interestedLeads = getInterestedLeads(selectedProperty.id);
     const isRentalProperty = isRental(selectedProperty.type);
+
+    const availableLeadsToLink = leads.filter(l => 
+        !l.interestedInPropertyIds.includes(selectedProperty.id) &&
+        (l.name.toLowerCase().includes(leadInDetailsSearch.toLowerCase()) || 
+         l.phone.includes(leadInDetailsSearch))
+    ).slice(0, 5);
+
     return (
       <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
@@ -679,7 +695,52 @@ export const Properties: React.FC = () => {
             <div className="space-y-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Corretor Responsável</h3><div className="flex items-center space-x-3"><div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600"><User size={24} /></div><div><p className="font-bold text-slate-800 text-lg">{getBrokerName(selectedProperty.brokerId)}</p><p className="text-slate-500 text-sm">Captador</p></div></div><button onClick={generatePDF} disabled={isGeneratingPdf} className="w-full flex items-center justify-center space-x-2 text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 font-bold py-3 px-4 rounded-lg transition mt-6 disabled:opacity-50">{isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}<span>{isGeneratingPdf ? 'Gerando PDF...' : 'Gerar Ficha em PDF'}</span></button><div className="mt-4 pt-4 border-t border-slate-100 flex justify-between"><button onClick={(e) => handleDeleteClick(selectedProperty.id, e)} className="w-full flex items-center justify-center space-x-2 text-red-600 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={18} /><span>Excluir Imóvel</span></button></div></div>
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-                    <div className="p-4 border-b border-slate-100 bg-slate-50/50"><h3 className="font-bold text-slate-800 flex items-center"><MessageCircle className="mr-2 text-blue-500" size={20} />Leads Interessados ({interestedLeads.length})</h3></div>
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-800 flex items-center"><MessageCircle className="mr-2 text-blue-500" size={20} />Leads Interessados ({interestedLeads.length})</h3>
+                        <button 
+                            onClick={() => { setIsAddingLeadInDetails(!isAddingLeadInDetails); setLeadInDetailsSearch(''); }}
+                            className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-full transition bg-blue-50 border border-blue-100"
+                            title="Vincular Lead Interessado"
+                        >
+                            {isAddingLeadInDetails ? <X size={18}/> : <Plus size={18} />}
+                        </button>
+                    </div>
+                    
+                    {isAddingLeadInDetails && (
+                        <div className="p-4 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top duration-200">
+                            <label className="block text-[10px] font-bold text-blue-600 uppercase mb-1.5 tracking-wider">Vincular Cliente ao Imóvel</label>
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 text-blue-400" size={14} />
+                                <input 
+                                    autoFocus
+                                    type="text" 
+                                    placeholder="Buscar lead por nome ou tel..." 
+                                    value={leadInDetailsSearch}
+                                    onChange={(e) => setLeadInDetailsSearch(e.target.value)}
+                                    className="w-full pl-8 pr-3 py-2 bg-white border border-blue-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            {leadInDetailsSearch && (
+                                <div className="mt-2 bg-white border border-blue-100 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                                    {availableLeadsToLink.map(lead => (
+                                        <button 
+                                            key={lead.id} 
+                                            onClick={() => handleLinkLeadInDetails(lead.id)}
+                                            className="w-full text-left p-2.5 hover:bg-blue-50 border-b border-slate-50 last:border-0 flex items-center justify-between group transition"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-slate-700 truncate">{lead.name}</p>
+                                                <p className="text-[10px] text-slate-500">{lead.phone}</p>
+                                            </div>
+                                            <Plus size={14} className="text-blue-500 opacity-0 group-hover:opacity-100 transition"/>
+                                        </button>
+                                    ))}
+                                    {availableLeadsToLink.length === 0 && <p className="p-3 text-center text-xs text-slate-400 italic">Nenhum lead compatível.</p>}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="overflow-y-auto flex-1 p-2">
                         {interestedLeads.map(lead => {
                             const currentStatus = getInterestStatus(lead.id, selectedProperty.id);
@@ -690,7 +751,7 @@ export const Properties: React.FC = () => {
                                 </div>
                             )
                         })}
-                        {interestedLeads.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">Nenhum lead marcou interesse ainda.</p>}
+                        {interestedLeads.length === 0 && !isAddingLeadInDetails && <p className="text-center text-slate-400 text-sm mt-10">Nenhum lead marcou interesse ainda.</p>}
                     </div>
                 </div>
             </div>
@@ -732,7 +793,6 @@ export const Properties: React.FC = () => {
                         <div className="flex items-center space-x-2 text-slate-500 font-bold uppercase text-xs tracking-wider">
                             <Filter size={14} /> <span>Filtros Avançados</span>
                         </div>
-                        {/* BOTÃO DE ALTERNAR VISUALIZAÇÃO */}
                         <div className="flex items-center bg-slate-100 p-1 rounded-lg">
                             <button 
                                 onClick={() => setViewMode('grid')}
@@ -771,7 +831,9 @@ export const Properties: React.FC = () => {
                     ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-8" 
                     : "flex flex-col gap-4 pb-8"
                 }>
-                    {filteredProperties.map(property => (
+                    {filteredProperties.map(property => {
+                        const propertyInterestedLeads = leads.filter(l => l.interestedInPropertyIds.includes(property.id));
+                        return (
                         <div 
                             key={property.id} 
                             className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg transition duration-200 cursor-pointer group ${property.status === 'Sold' ? 'opacity-75' : ''} ${viewMode === 'list' ? 'flex flex-row' : ''}`} 
@@ -786,17 +848,41 @@ export const Properties: React.FC = () => {
                             <div className={`p-4 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-center' : ''}`}>
                                 <h3 className={`font-bold text-slate-800 ${viewMode === 'list' ? 'text-lg mb-1' : 'text-sm mb-1 line-clamp-1'}`}>{property.title}</h3>
                                 <p className="text-slate-500 text-[10px] mb-2 flex items-center"><MapPin size={10} className="mr-1"/> {property.address}</p>
-                                <div className={`flex items-center justify-between text-slate-600 text-[10px] ${viewMode === 'list' ? 'mb-4 border-y border-slate-50 py-2' : 'mb-3'}`}>
-                                    <span className="flex items-center"><BedDouble size={12} className="mr-1 text-blue-400"/> {property.bedrooms}</span>
-                                    <span className="flex items-center"><Bath size={12} className="mr-1 text-blue-400"/> {property.bathrooms}</span>
-                                    <span className="flex items-center"><Square size={12} className="mr-1 text-blue-400"/> {property.area}m²</span>
+                                <div className={`flex items-center justify-between text-slate-600 text-[10px] ${viewMode === 'list' ? 'mb-2 border-y border-slate-50 py-2' : 'mb-3'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <span className="flex items-center"><BedDouble size={12} className="mr-1 text-blue-400"/> {property.bedrooms}</span>
+                                        <span className="flex items-center"><Bath size={12} className="mr-1 text-blue-400"/> {property.bathrooms}</span>
+                                        <span className="flex items-center"><Square size={12} className="mr-1 text-blue-400"/> {property.area}m²</span>
+                                    </div>
                                 </div>
+
+                                {viewMode === 'list' && (
+                                    <div className="mb-3">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Clientes Interessados:</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {propertyInterestedLeads.map(lead => {
+                                                const status = getInterestStatus(lead.id, property.id);
+                                                return (
+                                                    <div key={lead.id} className={`flex items-center text-[9px] px-2 py-0.5 rounded-full border font-bold ${getStatusStyle(status)}`}>
+                                                        <User size={8} className="mr-1" />
+                                                        <span className="opacity-80 mr-1 truncate max-w-[100px]">{lead.name}</span>
+                                                        <span className="flex-shrink-0 text-[8px] opacity-90 tracking-tighter">({status})</span>
+                                                    </div>
+                                                )
+                                            })}
+                                            {propertyInterestedLeads.length === 0 && (
+                                                <span className="text-[9px] text-slate-400 font-medium italic">Nenhum interessado ainda</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className={`pt-2 border-t border-slate-100 flex justify-between items-center ${viewMode === 'list' ? 'border-none p-0' : ''}`}>
                                     <p className={`font-bold text-blue-600 ${viewMode === 'list' ? 'text-xl' : 'text-base'}`}>{formatCurrency(property.price)}</p>
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
                 
                 <ConfirmModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} title="Excluir Imóvel" message="Tem certeza?" confirmText="Excluir" isDestructive />
