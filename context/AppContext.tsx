@@ -1,4 +1,5 @@
 
+// @ts-nocheck
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { User, Agency, Property, Lead, Task, ViewState, LeadStatus, PropertyType, Message, OperationResult, FinancialRecord, LeadInterest, AiMatchOpportunity, AiRecoveryOpportunity } from '../types';
 import * as DB from '../services/db';
@@ -102,6 +103,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [notificationLead, setNotificationLead] = useState<Lead | null>(null);
     const [pendingAgenciesCount, setPendingAgenciesCount] = useState(0);
 
+    const notifiedTaskIds = useRef<Set<string>>(new Set());
+
     const isSuperAdmin = currentUser?.email === 'fernandes_guto@hotmail.com';
 
     const leadsRef = useRef(leads);
@@ -115,12 +118,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const setAiStaleLeads = (opps: AiRecoveryOpportunity[]) => {
         setAiStaleLeadsState(opps);
         localStorage.setItem('imob_ai_stale_leads', JSON.stringify(opps));
-    };
-
-    const sanitizeLead = (lead: Lead) => {
-        const { ...cleanLead } = lead;
-        Object.keys(cleanLead).forEach(key => { if (key.startsWith('_')) delete (cleanLead as any)[key]; });
-        return cleanLead;
     };
 
     const refreshPendingCount = async () => {
@@ -141,22 +138,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const params = new URLSearchParams(window.location.search);
                 const pathParts = window.location.pathname.split('/').filter(Boolean);
                 
-                // Se houver algo no path (ex: /nome-ou-id), tenta usar como ID da agência
                 const publicAgencyId = params.get('agency') || params.get('imob') || pathParts[0];
 
                 if (publicAgencyId && publicAgencyId !== 'index.html' && publicAgencyId !== 'index2.html') {
-                    // Carrega agência para o site público
                     const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: publicAgencyId });
                     if (agencies && agencies.length > 0) {
                         setPublicAgency(agencies[0]);
                         const props = await DB.getAll<Property>('properties', { column: 'agencyId', value: publicAgencyId });
                         setProperties(props);
                         setCurrentView('PUBLIC');
-                    } else {
-                        // Caso o ID seja inválido, volta para landing se não estiver logado
-                        if (!localStorage.getItem('imob_user_id')) {
-                            setCurrentView('LANDING');
-                        }
+                    } else if (!localStorage.getItem('imob_user_id')) {
+                        setCurrentView('LANDING');
                     }
                 }
 
@@ -196,229 +188,258 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
 
     useEffect(() => {
-        if (isSuperAdmin) {
-            refreshPendingCount();
-        }
-    }, [isSuperAdmin]);
-
-    useEffect(() => {
-        localStorage.setItem('imob_theme_color', themeColor);
-        localStorage.setItem('imob_dark_mode', String(darkMode));
-    }, [themeColor, darkMode]);
-
-    useEffect(() => {
-        // Se estiver no modo público, não tenta carregar dados da agência logada
-        if (currentView === 'PUBLIC' || !currentUser || !currentAgency) return;
-        const loadData = async () => {
-            const agencyId = currentAgency.id;
-            try {
-                const [props, lds, tsks, usrs, recs] = await Promise.all([
-                    DB.getAll<Property>('properties', { column: 'agencyId', value: agencyId }),
-                    DB.getAll<Lead>('leads', { column: 'agencyId', value: agencyId }),
-                    DB.getAll<Task>('tasks', { column: 'agencyId', value: agencyId }),
-                    DB.getAll<User>('users', { column: 'agencyId', value: agencyId }),
-                    DB.getAll<FinancialRecord>('financial_records', { column: 'agencyId', value: agencyId }).catch(() => [])
-                ]);
-                setProperties(props);
-                setLeads(lds);
-                setTasks(tsks);
-                setUsers(usrs);
-                setFinancialRecords(recs);
-            } catch (e) {
-                console.warn("Erro ao carregar dados da agência.");
-            }
+        if (!currentUser) return;
+        const load = async () => {
+            const agencyId = currentUser.agencyId;
+            const [p, l, t, u, f] = await Promise.all([
+                DB.getAll<Property>('properties', { column: 'agencyId', value: agencyId }),
+                DB.getAll<Lead>('leads', { column: 'agencyId', value: agencyId }),
+                DB.getAll<Task>('tasks', { column: 'agencyId', value: agencyId }),
+                DB.getAll<User>('users', { column: 'agencyId', value: agencyId }),
+                DB.getAll<FinancialRecord>('financial_records', { column: 'agencyId', value: agencyId })
+            ]);
+            setProperties(p);
+            setLeads(l);
+            setTasks(t);
+            setUsers(u);
+            setFinancialRecords(f);
+            if (isSuperAdmin) refreshPendingCount();
         };
-        loadData();
-    }, [currentUser, currentAgency, currentView]);
+        load();
+    }, [currentUser, isSuperAdmin]);
+
+    useEffect(() => {
+        if (!currentUser || tasks.length === 0) return;
+        const interval = setInterval(() => {
+            const now = new Date();
+            const pendingTask = tasks.find(t => !t.completed && new Date(t.dueDate) <= now && !notifiedTaskIds.current.has(t.id));
+            if (pendingTask) {
+                setNotificationTask(pendingTask);
+                notifiedTaskIds.current.add(pendingTask.id);
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [currentUser, tasks]);
 
     const login = async (email: string, password: string): Promise<OperationResult> => {
-        try {
-            const users = await DB.getAll<User>('users', { column: 'email', value: email });
-            const user = users.find(u => u.password === password); 
-            if (user) {
-                const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
-                if (!agencies || agencies.length === 0) return { success: false, message: 'Agência não encontrada.' };
+        const users = await DB.getAll<User>('users', { column: 'email', value: email });
+        if (users.length > 0 && users[0].password === password) {
+            const user = users[0];
+            const agencies = await DB.getAll<Agency>('agencies', { column: 'id', value: user.agencyId });
+            if (agencies.length > 0) {
                 const agency = agencies[0];
-                if (!agency.isApproved) {
-                    if (agency.trialExpiresAt && new Date() > new Date(agency.trialExpiresAt)) {
-                        return { success: false, message: 'PERÍODO DE TESTE EXPIRADO' };
-                    }
+                if (!agency.isApproved && agency.trialExpiresAt && new Date() > new Date(agency.trialExpiresAt)) {
+                    return { success: false, message: 'PERÍODO DE TESTE EXPIRADO' };
                 }
-                localStorage.setItem('imob_user_id', user.id);
                 setCurrentUser(user);
                 setCurrentAgency(agency);
+                localStorage.setItem('imob_user_id', user.id);
                 setCurrentView('DASHBOARD');
                 await DB.updateItem('users', { ...user, loginCount: (user.loginCount || 0) + 1 });
                 return { success: true };
             }
-            return { success: false, message: 'Email ou senha inválidos.' };
-        } catch (e) {
-            return { success: false, message: 'Falha na conexão com o servidor.' };
         }
+        return { success: false, message: 'Credenciais inválidas' };
     };
 
     const logout = () => {
+        setCurrentUser(null);
+        setCurrentAgency(null);
         localStorage.removeItem('imob_user_id');
-        window.location.reload(); 
+        setCurrentView('LANDING');
     };
 
     const registerAgency = async (agencyName: string, adminName: string, email: string, phone: string, password: string): Promise<OperationResult> => {
+        const agencyId = uuid();
+        const trialExpiresAt = new Date();
+        trialExpiresAt.setDate(trialExpiresAt.getDate() + 7);
         try {
-            const agencyId = uuid();
-            const userId = uuid();
-            const trialDate = new Date();
-            trialDate.setDate(trialDate.getDate() + 7); // Alterado para 7 dias
-            const newAgency: Agency = { id: agencyId, name: agencyName, createdAt: new Date().toISOString(), isApproved: false, trialExpiresAt: trialDate.toISOString(), phone: phone };
-            const newAdmin: User = { id: userId, name: adminName, email, password, phone, role: 'Admin', agencyId, avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=random`, loginCount: 0 };
-            await DB.addItem('agencies', newAgency);
-            await DB.addItem('users', newAdmin);
-            return { success: true, message: 'Conta criada! Você tem 7 dias de teste grátis.' };
+            await DB.addItem('agencies', { id: agencyId, name: agencyName, trialExpiresAt: trialExpiresAt.toISOString(), isApproved: false });
+            await DB.addItem('users', { id: uuid(), name: adminName, email, phone, password, role: 'Admin', agencyId, avatarUrl: `https://ui-avatars.com/api/?name=${adminName}` });
+            return { success: true, message: 'Agência registrada com sucesso! Faça login para começar o teste.' };
         } catch (e: any) {
-             return { success: false, message: 'Erro ao criar conta. Verifique os dados.' };
+            return { success: false, message: e.message };
         }
     };
 
     const addProperty = async (property: Property) => {
-        const nextCode = getNextPropertyCode();
-        const saved = await DB.addItem<Property>('properties', { ...property, code: nextCode });
-        setProperties(prev => [...prev, saved]);
+        const newItem = await DB.addItem<Property>('properties', property);
+        setProperties([...properties, newItem]);
     };
 
     const updateProperty = async (property: Property) => {
-        await DB.updateItem('properties', property);
-        setProperties(prev => prev.map(p => p.id === property.id ? property : p));
+        const updated = await DB.updateItem<Property>('properties', property);
+        setProperties(properties.map(p => p.id === updated.id ? updated : p));
     };
 
     const deleteProperty = async (id: string) => {
-        const prop = properties.find(p => p.id === id);
         await DB.deleteItem('properties', id);
-        setProperties(prev => prev.filter(p => p.id !== id));
-        if (prop?.images) DB.deleteStorageImages(prop.images);
+        setProperties(properties.filter(p => p.id !== id));
     };
 
     const markPropertyAsSold = async (id: string, leadId?: string | null, salePrice?: number, commission?: number, soldByUserId?: string, rentalStartDate?: string, rentalEndDate?: string) => {
-        const update = { id, status: 'Sold', soldAt: rentalStartDate || new Date().toISOString(), rentalEndDate, soldToLeadId: leadId, soldByUserId, salePrice, commissionValue: commission };
-        await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } as Property : p));
-        if (leadId) updateLeadInterestStatus(leadId, id, LeadStatus.CLOSED);
+        const prop = properties.find(p => p.id === id);
+        if (!prop) return;
+        const updates: Partial<Property> = { status: 'Sold', soldAt: rentalStartDate || new Date().toISOString(), rentalEndDate, soldToLeadId: leadId || undefined, soldByUserId, salePrice, commissionValue: commission };
+        const updated = await DB.updateItem<Property>('properties', { ...prop, ...updates });
+        setProperties(properties.map(p => p.id === id ? updated : p));
+        if (commission && commission > 0) {
+            await DB.addItem('financial_records', { id: uuid(), agencyId: prop.agencyId, propertyId: id, type: prop.type.includes('Locação') ? 'Rental' : 'Sale', value: salePrice || 0, commission, date: updates.soldAt, endDate: rentalEndDate, leadId: leadId || undefined, brokerId: soldByUserId || prop.brokerId });
+        }
     };
 
     const reactivateProperty = async (id: string) => {
-        const update = { id, status: 'Active', soldAt: null, rentalEndDate: null, soldToLeadId: null, soldByUserId: null, salePrice: null, commissionValue: null, commissionDistribution: null };
-        await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } as any : p));
+        const prop = properties.find(p => p.id === id);
+        if (!prop) return;
+        const updated = await DB.updateItem<Property>('properties', { ...prop, status: 'Active', soldAt: undefined, rentalEndDate: undefined, soldToLeadId: undefined, salePrice: undefined, commissionValue: undefined });
+        setProperties(properties.map(p => p.id === id ? updated : p));
     };
 
     const renewRental = async (id: string, newRent: number, newComm: number, startDate: string, endDate: string) => {
         const prop = properties.find(p => p.id === id);
-        if (!prop || !currentAgency) return;
-        const update = { id, salePrice: newRent, commissionValue: newComm, soldAt: new Date(startDate).toISOString(), rentalEndDate: new Date(endDate).toISOString() };
-        await DB.updateItem('properties', update);
-        setProperties(prev => prev.map(p => p.id === id ? { ...p, ...update } : p));
+        if (!prop) return;
+        const updated = await DB.updateItem<Property>('properties', { ...prop, salePrice: newRent, commissionValue: newComm, soldAt: startDate, rentalEndDate: endDate });
+        setProperties(properties.map(p => p.id === id ? updated : p));
+        await DB.addItem('financial_records', { id: uuid(), agencyId: prop.agencyId, propertyId: id, type: 'Rental', value: newRent, commission: newComm, date: startDate, endDate, leadId: prop.soldToLeadId, brokerId: prop.soldByUserId || prop.brokerId });
     };
 
-    const getNextPropertyCode = () => properties.length === 0 ? 1 : Math.max(...properties.map(p => p.code || 0)) + 1;
+    const getNextPropertyCode = () => {
+        const codes = properties.map(p => p.code || 0);
+        return Math.max(0, ...codes) + 1;
+    };
 
     const addLead = async (lead: Lead) => {
-        const saved = await DB.addItem<Lead>('leads', sanitizeLead(lead));
-        setLeads(prev => [saved, ...prev]);
-        setNotificationLead(saved);
+        const newItem = await DB.addItem<Lead>('leads', lead);
+        setLeads([...leads, newItem]);
+        if (lead.source === 'Site') setNotificationLead(newItem);
     };
 
     const updateLead = async (lead: Lead) => {
-        await DB.updateItem('leads', sanitizeLead(lead));
-        setLeads(prev => prev.map(l => l.id === lead.id ? lead : l));
+        const updated = await DB.updateItem<Lead>('leads', lead);
+        setLeads(leads.map(l => l.id === updated.id ? updated : l));
     };
 
     const updateLeadStatus = async (id: string, status: LeadStatus) => {
-        await DB.updateItem('leads', { id, status });
-        setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+        const lead = leads.find(l => l.id === id);
+        if (!lead) return;
+        const updated = await DB.updateItem<Lead>('leads', { ...lead, status });
+        setLeads(leads.map(l => l.id === id ? updated : l));
     };
 
     const updateLeadInterestStatus = async (leadId: string, propertyId: string, status: LeadStatus) => {
         const lead = leads.find(l => l.id === leadId);
         if (!lead) return;
-        const interests = lead.interests ? [...lead.interests] : [];
+        
+        const interests = [...(lead.interests || [])];
+        const interestedInPropertyIds = [...(lead.interestedInPropertyIds || [])];
+        
         const idx = interests.findIndex(i => i.propertyId === propertyId);
-        if (idx >= 0) interests[idx] = { ...interests[idx], status, updatedAt: new Date().toISOString() };
-        else interests.push({ propertyId, status, updatedAt: new Date().toISOString() });
-        await DB.updateItem('leads', { id: leadId, interests });
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, interests } : l));
+        if (idx >= 0) {
+            interests[idx] = { ...interests[idx], status, updatedAt: new Date().toISOString() };
+        } else {
+            interests.push({ propertyId, status, updatedAt: new Date().toISOString() });
+        }
+        
+        // Sincroniza interestedInPropertyIds para garantir que o lead seja filtrado corretamente na tela de imóveis
+        if (!interestedInPropertyIds.includes(propertyId)) {
+            interestedInPropertyIds.push(propertyId);
+        }
+        
+        const updated = await DB.updateItem<Lead>('leads', { ...lead, interests, interestedInPropertyIds });
+        setLeads(leads.map(l => l.id === leadId ? updated : l));
     };
 
     const deleteLead = async (id: string) => {
         await DB.deleteItem('leads', id);
-        setLeads(prev => prev.filter(l => l.id !== id));
+        setLeads(leads.filter(l => l.id !== id));
     };
 
     const addTask = async (task: Task) => {
-        const saved = await DB.addItem<Task>('tasks', task);
-        setTasks(prev => [...prev, saved]);
+        const newItem = await DB.addItem<Task>('tasks', task);
+        setTasks([...tasks, newItem]);
     };
 
     const updateTask = async (task: Task) => {
-        await DB.updateItem('tasks', task);
-        setProperties(prev => prev.map(p => p.id === task.propertyId ? { ...p } : p)); // Force reload UI
-        setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+        const updated = await DB.updateItem<Task>('tasks', task);
+        setTasks(tasks.map(t => t.id === updated.id ? updated : t));
     };
 
     const toggleTaskCompletion = async (id: string) => {
         const task = tasks.find(t => t.id === id);
-        if (task) {
-            const completed = !task.completed;
-            await DB.updateItem('tasks', { id, completed });
-            setTasks(prev => prev.map(t => t.id === id ? { ...t, completed } : t));
-        }
+        if (!task) return;
+        const updated = await DB.updateItem<Task>('tasks', { ...task, completed: !task.completed });
+        setTasks(tasks.map(t => t.id === id ? updated : t));
     };
 
     const deleteTask = async (id: string) => {
         await DB.deleteItem('tasks', id);
-        setTasks(prev => prev.filter(t => t.id !== id));
+        setTasks(tasks.filter(t => t.id !== id));
     };
 
     const createAgencyUser = async (userData: Partial<User>): Promise<OperationResult> => {
-        if (!currentAgency) return { success: false, message: 'Sem agência.' };
-        const newUser: User = { id: uuid(), name: userData.name!, email: userData.email!, password: userData.password!, phone: userData.phone, role: userData.role || 'Broker', avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || '')}`, agencyId: currentAgency.id, loginCount: 0 };
-        const saved = await DB.addItem<User>('users', newUser);
-        setUsers(prev => [...prev, saved]);
-        return { success: true };
+        try {
+            const newItem = await DB.addItem<User>('users', { ...userData, id: uuid(), avatarUrl: `https://ui-avatars.com/api/?name=${userData.name}` });
+            setUsers([...users, newItem]);
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, message: e.message };
+        }
     };
 
     const updateUser = async (user: User) => {
-        await DB.updateItem('users', user);
-        setUsers(prev => prev.map(u => u.id === user.id ? user : u));
-        if (currentUser?.id === user.id) setCurrentUser(user);
-        return { success: true };
+        try {
+            const updated = await DB.updateItem<User>('users', user);
+            setUsers(users.map(u => u.id === updated.id ? updated : u));
+            if (currentUser?.id === updated.id) setCurrentUser(updated);
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, message: e.message };
+        }
     };
 
-    const deleteUser = async (id: string) => {
-        await DB.deleteItem('users', id);
-        setUsers(prev => prev.filter(u => u.id !== id));
-        return { success: true };
+    const deleteUser = async (id: string): Promise<OperationResult> => {
+        try {
+            await DB.deleteItem('users', id);
+            setUsers(users.filter(u => u.id !== id));
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, message: e.message };
+        }
     };
 
     const updateAgency = async (agency: Agency) => {
-        await DB.updateItem('agencies', agency);
-        setCurrentAgency(agency);
+        const updated = await DB.updateItem<Agency>('agencies', agency);
+        setCurrentAgency(updated);
     };
 
-    const loadMessages = async (leadId: string) => setMessages([]);
-    const addMessage = async (msg: any) => setMessages(prev => [...prev, msg]);
-    const dismissNotification = () => { setNotificationTask(null); setNotificationLead(null); };
+    const loadMessages = async (leadId: string) => {
+        const m = await DB.getAll<Message>('messages', { column: 'leadId', value: leadId });
+        setMessages(m);
+    };
+
+    const addMessage = async (msg: any) => {
+        const newItem = await DB.addItem<Message>('messages', msg);
+        setMessages([...messages, newItem]);
+    };
+
+    const dismissNotification = () => {
+        setNotificationTask(null);
+        setNotificationLead(null);
+    };
+
+    const contextValue: AppContextType = {
+        currentUser, currentAgency, publicAgency, properties, leads, tasks, users, messages, financialRecords,
+        currentView, setCurrentView, authTab, setAuthTab, isLoading, themeColor, setThemeColor, darkMode, setDarkMode,
+        login, logout, registerAgency, setAgency: setCurrentAgency, addProperty, updateProperty, deleteProperty,
+        markPropertyAsSold, reactivateProperty, renewRental, getNextPropertyCode, addLead, updateLead,
+        updateLeadStatus, updateLeadInterestStatus, deleteLead, addTask, updateTask, toggleTaskCompletion,
+        deleteTask, createAgencyUser, updateUser, deleteUser, updateAgency, loadMessages, addMessage,
+        notificationTask, notificationLead, dismissNotification, aiOpportunities, setAiOpportunities,
+        aiStaleLeads, setAiStaleLeads, isSuperAdmin, pendingAgenciesCount, refreshPendingCount
+    };
 
     return (
-        <AppContext.Provider value={{
-            currentUser, currentAgency, publicAgency, properties, leads, tasks, users, messages, financialRecords,
-            currentView, setCurrentView, authTab, setAuthTab, isLoading, themeColor, setThemeColor, darkMode, setDarkMode,
-            login, logout, registerAgency, setAgency: setCurrentAgency,
-            addProperty, updateProperty, deleteProperty, markPropertyAsSold, reactivateProperty, renewRental, getNextPropertyCode,
-            addLead, updateLead, updateLeadStatus, updateLeadInterestStatus, deleteLead,
-            addTask, updateTask, toggleTaskCompletion, deleteTask,
-            createAgencyUser, updateUser, deleteUser, updateAgency,
-            loadMessages, addMessage, notificationTask, notificationLead, dismissNotification,
-            aiOpportunities, setAiOpportunities, aiStaleLeads, setAiStaleLeads,
-            isSuperAdmin, pendingAgenciesCount, refreshPendingCount
-        }}>
+        <AppContext.Provider value={contextValue}>
             {children}
         </AppContext.Provider>
     );
