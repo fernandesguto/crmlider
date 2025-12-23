@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus, Property } from '../types';
-import { Phone, Mail, Clock, Search, Plus, Edit, X, Save, Trash2, Filter, MapPin, BedDouble, Bath, Square, MessageCircle, Share2, ChevronDown, User, FileText, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Phone, Mail, Clock, Search, Plus, Edit, X, Save, Trash2, Filter, MapPin, BedDouble, Bath, Square, MessageCircle, Share2, ChevronDown, User, FileText, Building2, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Leads: React.FC = () => {
@@ -45,9 +45,8 @@ export const Leads: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, propertyFilter, typeFilter, sourceFilter, itemsPerPage]);
 
-  const getInterestStatus = (lead: any, propId: string) => {
-      const interest = lead.interests?.find((i: any) => i.propertyId === propId);
-      return interest?.status || lead.status || LeadStatus.NEW;
+  const getInterestData = (lead: any, propId: string) => {
+      return lead.interests?.find((i: any) => i.propertyId === propId) || { status: lead.status || LeadStatus.NEW, notes: '' };
   };
 
   const filteredLeads = leads
@@ -139,7 +138,7 @@ export const Leads: React.FC = () => {
       if (!propertyId) return;
       const interested = formData.interestedInPropertyIds || [];
       if (!interested.includes(propertyId)) {
-          const newInterests = [...(formData.interests || []), { propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString() }];
+          const newInterests = [...(formData.interests || []), { propertyId, status: LeadStatus.NEW, updatedAt: new Date().toISOString(), notes: '' }];
           setFormData({ ...formData, interestedInPropertyIds: [...interested, propertyId], interests: newInterests });
       }
   };
@@ -152,10 +151,12 @@ export const Leads: React.FC = () => {
       });
   };
 
-  const updateInterestStatusInForm = (propId: string, newStatus: string) => {
+  const updateInterestFieldInForm = (propId: string, field: string, value: any) => {
       const currentInterests = [...(formData.interests || [])];
       const idx = currentInterests.findIndex((i: any) => i.propertyId === propId);
-      if (idx >= 0) currentInterests[idx] = { ...currentInterests[idx], status: newStatus, updatedAt: new Date().toISOString() };
+      if (idx >= 0) {
+          currentInterests[idx] = { ...currentInterests[idx], [field]: value, updatedAt: new Date().toISOString() };
+      }
       setFormData({ ...formData, interests: currentInterests });
   };
 
@@ -179,19 +180,6 @@ export const Leads: React.FC = () => {
         </div>
         <div className="mt-3 flex flex-col sm:flex-row justify-between items-center gap-2">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">{totalItems} leads encontrados</div>
-            <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Mostrar:</span>
-                <select 
-                    value={itemsPerPage} 
-                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg p-1 outline-none"
-                >
-                    <option value={5}>5</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </select>
-            </div>
         </div>
       </div>
 
@@ -208,22 +196,27 @@ export const Leads: React.FC = () => {
                             <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
                                 <h3 className="text-lg font-bold text-slate-800 truncate">{lead.name}</h3>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap ${lead.type === 'Buyer' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>{lead.type === 'Buyer' ? 'Comprador' : 'Proprietário'}</span>
-                                {lead.source && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><Share2 size={10} className="mr-1" /> {lead.source}</span>}
                                 {lead.phone && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><Phone size={10} className="mr-1" /> {lead.phone}</span>}
-                                {(lead.city || lead.state) && <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded border text-slate-500 bg-slate-50 border-slate-200 uppercase tracking-wider whitespace-nowrap"><MapPin size={10} className="mr-1" /> {lead.city}{lead.city && lead.state ? ', ' : ''}{lead.state}</span>}
                             </div>
                         </div>
                     </div>
                     {interestedIn.length > 0 && (
                         <div className="mt-4">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest px-1">Interesses e Negociações</span>
-                            <div className="flex flex-wrap gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest px-1">Interesses e feedbacks</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {getInterestedProperties(interestedIn).map((p: any) => {
-                                    const status = getInterestStatus(lead, p.id);
+                                    const interest = getInterestData(lead, p.id);
                                     return (
-                                        <div key={p.id} onClick={() => setViewProperty(p)} className="flex items-stretch text-xs bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 cursor-pointer transition w-full sm:w-auto">
-                                            <div className="px-3 py-2 flex items-center flex-1 min-w-0 border-r border-slate-100 gap-3"><div className="w-8 h-8 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="truncate font-bold text-slate-700">{p.title}</span></div>
-                                            <div className={`px-4 py-2 font-bold flex items-center whitespace-nowrap ${getStatusColor(status)}`}>{status}</div>
+                                        <div key={p.id} onClick={() => setViewProperty(p)} className="flex flex-col text-xs bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 cursor-pointer transition p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2 min-w-0"><div className="w-6 h-6 bg-slate-200 rounded flex-shrink-0 overflow-hidden"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="truncate font-bold text-slate-700">{p.title}</span></div>
+                                                <div className={`px-2 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${getStatusColor(interest.status)}`}>{interest.status}</div>
+                                            </div>
+                                            {interest.notes && (
+                                                <p className="text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded border border-slate-100 line-clamp-2">
+                                                    "{interest.notes}"
+                                                </p>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -243,54 +236,10 @@ export const Leads: React.FC = () => {
         })}
       </div>
 
-      {/* CONTROLES DE PAGINAÇÃO */}
-      {totalPages > 1 && (
-        <div className="mt-8 mb-20 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="flex items-center gap-2">
-                <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className="p-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                    <ChevronLeft size={24} />
-                </button>
-                
-                <div className="flex items-center gap-1">
-                    {[...Array(totalPages)].map((_, i) => {
-                        const page = i + 1;
-                        if (totalPages > 7 && Math.abs(page - currentPage) > 2 && page !== 1 && page !== totalPages) {
-                            if (page === 2 || page === totalPages - 1) return <span key={page} className="px-1 text-slate-400">...</span>;
-                            return null;
-                        }
-                        return (
-                            <button
-                                key={page}
-                                onClick={() => setCurrentPage(page)}
-                                className={`w-12 h-12 rounded-xl font-bold text-base transition ${currentPage === page ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300'}`}
-                            >
-                                {page}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className="p-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                    <ChevronRight size={24} />
-                </button>
-            </div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                Página {currentPage} de {totalPages}
-            </div>
-        </div>
-      )}
-
+      {/* MODAL DE CADASTRO / EDIÇÃO */}
        {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><X size={24}/></button>
             <h2 className="text-2xl font-bold mb-8 text-slate-900 flex items-center"><div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-4">{isEditing ? <Edit size={24} /> : <Plus size={24} />}</div>{isEditing ? 'Editar Lead' : 'Novo Lead'}</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -300,11 +249,10 @@ export const Leads: React.FC = () => {
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Telefone / WhatsApp</label><input required value={formData.phone || ''} onChange={e => { let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2'); setFormData({...formData, phone: val}); }} maxLength={15} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="(00) 00000-0000" /></div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Perfil do Cliente</label><select value={formData.type || 'Buyer'} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="Buyer">Comprador / Locatário</option><option value="Seller">Proprietário / Locador</option></select></div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Meio de Entrada (Origem)</label><select required value={formData.source || ''} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition"><option value="">Selecione a origem...</option>{leadSources.map(src => <option key={src} value={src}>{src}</option>)}</select></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Cidade de Origem</label><input value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Ex: São Paulo" /></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Estado (UF)</label><input value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value.toUpperCase()})} maxLength={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Ex: SP" /></div>
               </div>
+              
               <div className="border-t border-slate-100 pt-6">
-                 <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center"><Building2 className="mr-2 text-blue-500" size={18} /> Vincular Imóveis de Interesse</label>
+                 <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center"><Building2 className="mr-2 text-blue-500" size={18} /> Imóveis de Interesse e Feedbacks</label>
                  <div className="relative mb-4">
                     <button type="button" onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)} className="w-full bg-white border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm flex items-center justify-between shadow-sm"><span className="text-slate-500 font-medium">+ Adicionar imóvel à lista...</span><ChevronDown size={18} className="text-slate-400"/></button>
                     {isPropertyDropdownOpen && (
@@ -315,33 +263,41 @@ export const Leads: React.FC = () => {
                         </div>
                     )}
                  </div>
+                 
                  {formData.interestedInPropertyIds && formData.interestedInPropertyIds.length > 0 ? (
-                     <div className="space-y-3">
+                     <div className="space-y-4">
                          {getInterestedProperties(formData.interestedInPropertyIds).map((p: any) => {
-                             const interest = (formData.interests || []).find((i: any) => i.propertyId === p.id) || { status: LeadStatus.NEW };
+                             const interest = (formData.interests || []).find((i: any) => i.propertyId === p.id) || { status: LeadStatus.NEW, notes: '' };
                              return (
-                                 <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between shadow-sm">
-                                     <div className="flex items-center gap-3 flex-1 overflow-hidden"><div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="font-bold text-slate-700 truncate text-sm">{p.title}</span></div>
-                                     <div className="flex items-center space-x-3 ml-4"><select value={interest.status} onChange={(e) => updateInterestStatusInForm(p.id, e.target.value)} className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">{Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}</select><button type="button" onClick={() => removePropertyInterest(p.id)} className="text-slate-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button></div>
+                                 <div key={p.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-sm">
+                                     <div className="flex items-center justify-between mb-3">
+                                         <div className="flex items-center gap-3 flex-1 overflow-hidden"><div className="w-10 h-10 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0"><img src={p.images?.[0]} alt="" className="w-full h-full object-cover" /></div><span className="font-bold text-slate-700 truncate text-sm">{p.title}</span></div>
+                                         <div className="flex items-center space-x-3 ml-4">
+                                            <select value={interest.status} onChange={(e) => updateInterestFieldInForm(p.id, 'status', e.target.value)} className="text-[10px] font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">{Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}</select>
+                                            <button type="button" onClick={() => removePropertyInterest(p.id)} className="text-slate-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                                         </div>
+                                     </div>
+                                     <div className="relative">
+                                         <MessageSquare className="absolute left-3 top-3 text-slate-300" size={14} />
+                                         <textarea 
+                                            placeholder="O que o cliente achou deste imóvel especificamente?"
+                                            value={interest.notes || ''}
+                                            onChange={(e) => updateInterestFieldInForm(p.id, 'notes', e.target.value)}
+                                            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-600 outline-none focus:ring-1 focus:ring-blue-400 min-h-[60px] resize-none"
+                                         />
+                                     </div>
                                  </div>
                              )
                          })}
                      </div>
                  ) : <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">Clique acima para vincular imóveis.</p>}
               </div>
-              <div className="border-t border-slate-100 pt-6"><label className="block text-sm font-bold text-slate-800 mb-2">Observações</label><textarea rows={4} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" placeholder="Perfil, preferências, etc..." /></div>
+
+              <div className="border-t border-slate-100 pt-6"><label className="block text-sm font-bold text-slate-800 mb-2">Notas Gerais do Lead</label><textarea rows={3} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" placeholder="Perfil geral, preferências globais, etc..." /></div>
               <div className="flex justify-end space-x-3 pt-6 border-t border-slate-100"><button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-xl transition font-bold">Cancelar</button><button type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center space-x-2 shadow-lg shadow-blue-500/20"><Save size={20} /><span>{isEditing ? 'Atualizar Lead' : 'Salvar Lead'}</span></button></div>
             </form>
           </div>
         </div>
-      )}
-      {viewProperty && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-                  <div className="relative h-56 bg-slate-200"><img src={viewProperty.images?.[0]} className="w-full h-full object-cover" alt="" /><button onClick={() => setViewProperty(null)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full"><X size={20} /></button></div>
-                  <div className="p-6"><h3 className="text-xl font-bold text-slate-800 mb-2">{viewProperty.title}</h3><p className="text-2xl font-black text-blue-600 mb-6">{formatCurrency(viewProperty.price || 0)}</p><button onClick={() => setViewProperty(null)} className="w-full bg-slate-100 py-2.5 rounded-xl font-bold transition">Fechar</button></div>
-              </div>
-          </div>
       )}
       <ConfirmModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} title="Excluir Lead" message={`Tem certeza que deseja excluir?`} confirmText="Sim, Excluir" isDestructive />
     </div>
