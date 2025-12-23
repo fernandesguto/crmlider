@@ -504,7 +504,7 @@ export const Properties: React.FC = () => {
   };
 
   const getBrokerName = (id: string) => users.find(u => u.id === id)?.name || 'Desconhecido';
-  const getInterestedLeads = (propId: string) => leads.filter(l => l.interestedInPropertyIds.includes(propId));
+  const getInterestedLeads = (propId: string) => leads.filter(l => (l.interestedInPropertyIds || []).includes(propId));
   const formatCode = (code?: number) => code ? `#${code.toString().padStart(5, '0')}` : '#00000';
   const displayImages = [...(formData.images || []), ...pendingFiles.map(p => p.preview)];
 
@@ -636,7 +636,7 @@ export const Properties: React.FC = () => {
     const isRentalProperty = isRental(selectedProperty.type);
 
     const availableLeadsToLink = leads.filter(l => 
-        !l.interestedInPropertyIds.includes(selectedProperty.id) &&
+        !(l.interestedInPropertyIds || []).includes(selectedProperty.id) &&
         (l.name.toLowerCase().includes(leadInDetailsSearch.toLowerCase()) || 
          l.phone.includes(leadInDetailsSearch))
     ).slice(0, 5);
@@ -852,7 +852,7 @@ export const Properties: React.FC = () => {
                     : "flex flex-col gap-4 pb-8"
                 }>
                     {filteredProperties.map(property => {
-                        const propertyInterestedLeads = leads.filter(l => l.interestedInPropertyIds.includes(property.id));
+                        const propertyInterestedLeads = leads.filter(l => (l.interestedInPropertyIds || []).includes(property.id));
                         return (
                         <div 
                             key={property.id} 
