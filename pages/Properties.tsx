@@ -48,6 +48,7 @@ export const Properties: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // Fix: Rename setSearchTerm to setSearchText to align with calls elsewhere in the file
   const [searchText, setSearchText] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
@@ -351,6 +352,7 @@ export const Properties: React.FC = () => {
       });
 
   const clearFilters = () => {
+      // Fix: Used setSearchText correctly
       setSearchText(''); setPriceMin(''); setPriceMax(''); setTypeFilter(''); setSelectedFeatures([]); setCategoryFilter(''); setSubtypeFilter(''); setCityFilter(''); setBedroomsFilter(''); setBathroomsFilter(''); setSortOption('date_desc');
   };
 
@@ -743,11 +745,17 @@ export const Properties: React.FC = () => {
 
                     <div className="overflow-y-auto flex-1 p-2">
                         {interestedLeads.map(lead => {
-                            const currentStatus = getInterestStatus(lead.id, selectedProperty.id);
                             return (
                                 <div key={lead.id} className="bg-white border border-slate-100 rounded-lg p-3 mb-2 hover:shadow-md transition">
-                                    <div className="flex justify-between items-start mb-2"><div><p className="font-bold text-slate-800">{lead.name}</p><p className="text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString()}</p></div><a href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center space-x-1 border border-green-200 transition"><Phone size={14} /> <span>WhatsApp</span></a></div>
-                                    <div className="mt-3 pt-2 border-t border-slate-50"><div className="relative"><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Etapa da Negociação</label><select value={currentStatus} onChange={(e) => updateLeadInterestStatus(lead.id, selectedProperty.id, e.target.value as LeadStatus)} onClick={(e) => e.stopPropagation()} className={`w-full text-xs font-bold py-2 px-2 rounded border outline-none cursor-pointer transition appearance-none text-center ${getStatusStyle(currentStatus)}`}>{Object.values(LeadStatus).map(status => (<option key={status} value={status}>{status}</option>))}</select><div className="absolute right-2 top-[22px] pointer-events-none text-current opacity-50"><ChevronDown size={14} /></div></div></div>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-bold text-slate-800">{lead.name}</p>
+                                            <p className="text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                        <a href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center space-x-1 border border-green-200 transition">
+                                            <Phone size={14} /> <span>WhatsApp</span>
+                                        </a>
+                                    </div>
                                 </div>
                             )
                         })}

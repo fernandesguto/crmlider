@@ -86,7 +86,7 @@ const SimpleCalendar = ({ tasks, leads, properties, users, onToggleTask }: Simpl
                 >
                     <span className="z-10">{i}</span>
                     {hasTasks && (
-                        <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-red-500'}`}></span>
+                        <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-red-50'}`}></span>
                     )}
                 </div>
             );
@@ -385,7 +385,6 @@ export const Dashboard: React.FC = () => {
       });
       if (financialRecords) {
         financialRecords.forEach(rec => {
-            // Added rec. prefix to fix "Cannot find name 'brokerId'" error
             if (rec.brokerId) brokerStats[rec.brokerId] = (brokerStats[rec.brokerId] || 0) + (rec.commission || 0);
         });
       }
@@ -440,7 +439,6 @@ export const Dashboard: React.FC = () => {
       const saved = localStorage.getItem('imob_dashboard_widgets');
       if (saved) {
           const parsed = JSON.parse(saved);
-          // Migração de widgets antigos para os novos divididos se necessário
           let updated = [...parsed];
           if (parsed.includes('chart_comm')) {
               updated = updated.filter(id => id !== 'chart_comm');
@@ -493,7 +491,7 @@ export const Dashboard: React.FC = () => {
                             <span className={`text-[10px] md:text-xs flex items-center flex-shrink-0 ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>{isOverdue && <AlertTriangle size={10} className="mr-1" />}{taskDate.toLocaleDateString('pt-BR')} • {taskDate.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
                             {assignedUser && <div className="flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200" title={`Responsável: ${assignedUser.name}`}><img src={assignedUser.avatarUrl} className="w-4 h-4 rounded-full" /><span className="text-[10px] font-bold text-slate-600 truncate max-w-[80px]">{assignedUser.name}</span></div>}
                             {linkedLead && <button onClick={() => setViewLead(linkedLead)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 flex items-center hover:bg-blue-100 max-w-[120px] truncate"><User size={10} className="mr-1"/>{linkedLead.name}</button>}
-                            {linkedProp && <button onClick={() => setViewProperty(linkedProp)} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 flex items-center hover:bg-purple-100 max-w-[200px] truncate" title={linkedProp.title}><Building2 size={10} className="mr-1 flex-shrink-0"/><span className="truncate">#{linkedProp.code} {linkedProp.title}</span></button>}
+                            {linkedProp && <button onClick={() => setViewProperty(linkedProp)} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 flex items-center hover:bg-blue-100 max-w-[200px] truncate" title={linkedProp.title}><Building2 size={10} className="mr-1 flex-shrink-0"/><span className="truncate">#{linkedProp.code} {linkedProp.title}</span></button>}
                         </div>
                     </div>
                 </div>
@@ -644,25 +642,18 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-80">
                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><Share2 className="mr-2 text-indigo-500" size={20}/> Origem dos Leads</h3>
                 <ResponsiveContainer width="100%" height="85%">
-                    <PieChart>
-                        <Pie
-                            data={leadsSourceData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={85}
-                            paddingAngle={5}
-                            label={({ name, value }) => `${value}`}
-                        >
-                            {leadsSourceData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} strokeWidth={2} />
-                            ))}
-                        </Pie>
+                    <BarChart data={leadsSourceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                        <YAxis allowDecimals={false} />
                         <Tooltip />
-                        <Legend layout="vertical" verticalAlign="middle" align="right" />
-                    </PieChart>
+                        <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40}>
+                            {leadsSourceData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} />
+                            ))}
+                            <LabelList dataKey="value" position="top" style={{ fill: '#64748b', fontSize: '11px', fontWeight: 'bold' }} />
+                        </Bar>
+                    </BarChart>
                 </ResponsiveContainer>
             </div>
           )}
