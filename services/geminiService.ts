@@ -22,9 +22,7 @@ const parseGenerativeJson = (text: string | undefined): any => {
 };
 
 // Create a new GoogleGenAI instance right before making an API call.
-// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 export const generatePropertyDescription = async (title: string, type: PropertyType, features: string[], area: number, bedrooms: number): Promise<string> => {
-  // Always use process.env.API_KEY directly
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Especialista imobiliário. Descrição profissional para: ${title}, ${type}, ${area}m², ${bedrooms} quartos. Destaques: ${features.join(', ')}. Sem markdown.`;
   try {
@@ -33,21 +31,27 @@ export const generatePropertyDescription = async (title: string, type: PropertyT
   } catch (error) { return "Erro ao conectar com a IA."; }
 };
 
+export interface InstagramPost {
+    headline: string;
+    body: string;
+    visualSuggestion: string;
+}
+
 export interface MarketingStrategyResult {
     texts: { tone: string; content: string }[];
     strategies: string[];
     targetAudience: string[];
     whatsappTips: string[];
+    instagramPosts: InstagramPost[];
 }
 
 // Create a new GoogleGenAI instance right before making an API call.
 export const generateMarketingStrategy = async (property: Property): Promise<MarketingStrategyResult | null> => {
-    // Always use process.env.API_KEY directly
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const priceFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.price);
     
-    const prompt = `Atue como um Especialista em Copywriting Imobiliário de alto padrão. Sua tarefa é criar textos comerciais longos, detalhados e altamente persuasivos para o seguinte imóvel: 
+    const prompt = `Atue como um Especialista em Marketing Imobiliário de alto nível. Sua tarefa é criar uma estratégia completa para o seguinte imóvel: 
     - Título: ${property.title}
     - Tipo: ${property.type}
     - Valor: ${priceFormatted}
@@ -59,24 +63,19 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
     - Descrição Original: ${property.description}
 
     Gere um JSON com as seguintes chaves:
-    1. 'texts': Um array de objetos with 'tone' (Premium, Oportunidade, Emocional) e 'content' (o texto longo).
-       O texto 'content' deve seguir este EXATO estilo e estrutura:
-       - Título de impacto incluindo Bairro e Cidade/UF.
-       - Espaçamento entre parágrafos para leitura leve.
-       - Uma narrativa que conecte o imóvel ao estilo de vida e conforto.
-       - Uma lista clara e formatada das características técnicas (m², dormitórios, banheiros).
-       - Destaque para a área externa e benefícios da localização.
-       - Valor de venda ou locação bem destacado com o emoji 💰.
-       - Fechamento com chamada para ação forte usando o emoji 📞.
-
+    1. 'texts': Um array de objetos com 'tone' (Premium, Oportunidade, Emocional) e 'content' (texto persuasivo longo).
     2. 'strategies': Array com 4 estratégias de divulgação.
     3. 'targetAudience': Array com 3 perfis de público-alvo.
     4. 'whatsappTips': Array com 4 dicas comerciais para converter no WhatsApp.
+    5. 'instagramPosts': Array com exatamente 3 objetos { 'headline', 'body', 'visualSuggestion' } específicos para ANÚNCIOS PAGOS (Instagram Ads).
+       Cada post deve ter uma pegada comercial diferente:
+       - Post 1: Foco em Estilo de Vida e Aspiração.
+       - Post 2: Foco em Oportunidade Financeira e Custo-Benefício.
+       - Post 3: Foco em Detalhes de Luxo/Exclusividade e Senso de Urgência.
 
     Retorne apenas o JSON puro, sem markdown ou textos explicativos fora do JSON.`;
 
     try {
-        // Upgrade to gemini-3-pro-preview for complex text task
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
             contents: prompt,
@@ -98,9 +97,21 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
                         },
                         strategies: { type: Type.ARRAY, items: { type: Type.STRING } },
                         targetAudience: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        whatsappTips: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        whatsappTips: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        instagramPosts: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    headline: { type: Type.STRING },
+                                    body: { type: Type.STRING },
+                                    visualSuggestion: { type: Type.STRING }
+                                },
+                                required: ["headline", "body", "visualSuggestion"]
+                            }
+                        }
                     },
-                    required: ["texts", "strategies", "targetAudience", "whatsappTips"]
+                    required: ["texts", "strategies", "targetAudience", "whatsappTips", "instagramPosts"]
                 }
             }
         });
@@ -111,43 +122,58 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
     }
 };
 
-// Create a new GoogleGenAI instance right before making an API call.
 export const askRealEstateAgent = async (question: string, leads: Lead[] = [], properties: Property[] = []): Promise<string> => {
-    // Always use process.env.API_KEY directly
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Consultor imobiliário. Pergunta: "${question}". Dados: ${properties.length} imóveis, ${leads.length} leads. Sem markdown.`;
     try {
-        // Upgrade to gemini-3-pro-preview for advanced reasoning
         const response = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
         return (response.text || "").replace(/\*/g, '');
     } catch (error) { return "Erro no chat."; }
 };
 
-// Create a new GoogleGenAI instance right before making an API call.
 export const findOpportunities = async (leads: Lead[], properties: Property[]): Promise<AiMatchOpportunity[]> => {
-    // Always use process.env.API_KEY directly
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    // Prepara dados reduzidos para o prompt
-    const simpleLeads = leads.slice(0, 40).map(l => ({ id: l.id, nome: l.name, obs: l.notes || '', interesses: l.interestedInPropertyIds || [] }));
-    const simpleProps = properties.filter(p => p.status === 'Active').slice(0, 40).map(p => ({ id: p.id, t: p.title, p: p.price, b: p.neighborhood, q: p.bedrooms, tp: p.type }));
-
-    const prompt = `IA Especialista em Vendas Imobiliárias. 
-    Cruze estes LEADS com estes IMÓVEIS e encontre as melhores combinações de compra/locação.
     
-    LEADS: ${JSON.stringify(simpleLeads)}
-    IMÓVEIS: ${JSON.stringify(simpleProps)}
+    // Mapeamento rico: Incluindo feedbacks específicos de cada imóvel que o lead já viu
+    const simpleLeads = leads.slice(0, 40).map(l => ({ 
+        id: l.id, 
+        nome: l.name, 
+        obs_gerais: l.notes || '', 
+        interesses: (l.interests || []).map(i => {
+            const prop = properties.find(p => p.id === i.propertyId);
+            return {
+                propertyId: i.propertyId,
+                imovel_titulo: prop?.title || 'Desconhecido',
+                feedback_cliente: i.notes || 'Sem observação específica'
+            };
+        })
+    }));
 
-    Regras:
-    1. Retorne um JSON Array de objetos: { "leadId": string, "propertyId": string, "matchScore": number(0-100), "reason": string(motivo curto), "suggestedAction": string }.
-    2. Ignore imóveis que o lead já possui na lista de interesses.
-    3. Seja preciso nos cruzamentos de perfil.`;
+    const simpleProps = properties.filter(p => p.status === 'Active').slice(0, 40).map(p => ({ 
+        id: p.id, 
+        t: p.title, 
+        p: p.price, 
+        b: p.neighborhood, 
+        q: p.bedrooms, 
+        tp: p.type,
+        area: p.area,
+        caracteristicas: p.features
+    }));
+
+    const prompt = `IA Especialista em Vendas Imobiliárias. Sua missão é identificar OPORTUNIDADES DE NEGÓCIO entre LEADS e IMÓVEIS.
+
+    REGRAS DE OURO PARA SUA ANÁLISE:
+    1. FEEDBACKS POSITIVOS: Se nos 'interesses' de um lead houver um feedback positivo (ex: "gostou muito", "achou legal", "interessou"), considere este imóvel como uma OPORTUNIDADE DE FECHAMENTO (Match Score > 90). Sua sugestão deve ser "Reforçar proposta e fechar negócio".
+    2. FEEDBACKS NEGATIVOS: Se o feedback for negativo (ex: "quarto pequeno", "localização ruim"), NÃO sugira este imóvel e também NÃO sugira imóveis que tenham o mesmo problema.
+    3. NOVOS MATCHES: Para imóveis que o lead ainda NÃO tem na lista de interesses, faça o cruzamento baseado no perfil e feedbacks anteriores.
+    
+    Retorne um JSON Array de objetos: { "leadId", "propertyId", "matchScore", "reason", "suggestedAction" }.
+    O campo 'reason' deve ser muito específico: "O cliente elogiou a varanda deste imóvel nas notas anteriores" ou "Baseado na preferência por áreas amplas, este imóvel é ideal".`;
 
     try {
-        // Upgrade to gemini-3-pro-preview for complex reasoning task and added responseSchema for stability
         const response = await ai.models.generateContent({ 
             model: 'gemini-3-pro-preview', 
-            contents: prompt, 
+            contents: `DADOS LEADS: ${JSON.stringify(simpleLeads)} \n\n DADOS IMÓVEIS: ${JSON.stringify(simpleProps)} \n\n ${prompt}`, 
             config: { 
                 responseMimeType: 'application/json',
                 responseSchema: {
@@ -174,25 +200,10 @@ export const findOpportunities = async (leads: Lead[], properties: Property[]): 
     }
 };
 
-// Create a new GoogleGenAI instance right before making an API call.
 export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]): Promise<AiRecoveryOpportunity[]> => {
-    // Always use process.env.API_KEY directly
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    const today = new Date().toISOString().split('T')[0];
-    const simpleLeads = leads.filter(l => l.status !== LeadStatus.CLOSED).slice(0, 30).map(l => ({ id: l.id, n: l.name, s: l.status, d: l.createdAt }));
-
-    const prompt = `Estrategista Comercial. Data de hoje para referência: ${today}.
-    Analise estes leads e identifique os que estão parados há muito tempo (compare a data de hoje com o campo d que é a data de criação).
-    Priorize leads que pareçam esquecidos (mais de 7 dias sem ação aparente).
-    Sugira uma abordagem de reativação via WhatsApp personalizada.
-    
-    LEADS: ${JSON.stringify(simpleLeads)}
-
-    Retorne um JSON Array: [{ "type": "lead", "id": string, "name": string, "daysInactive": number, "info": string, "analysis": string, "suggestion": string(mensagem de whatsapp) }]`;
-
+    const prompt = `Analise leads inativos. JSON Array: [{ "type", "id", "name", "daysInactive", "info", "analysis", "suggestion" }]`;
     try {
-        // Upgrade to gemini-3-pro-preview for strategic analysis and added responseSchema
         const response = await ai.models.generateContent({ 
             model: 'gemini-3-pro-preview', 
             contents: prompt, 
@@ -218,8 +229,5 @@ export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]):
         });
         const result = parseGenerativeJson(response.text);
         return Array.isArray(result) ? result : [];
-    } catch (error) { 
-        console.error("Erro analyzeStaleLeads:", error);
-        return []; 
-    }
+    } catch (error) { return []; }
 };

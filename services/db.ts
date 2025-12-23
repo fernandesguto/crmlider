@@ -4,22 +4,28 @@ import { Property, Lead, Task, User, Agency } from '../types';
 
 const getSqlSuggestion = (table: string, errorMsg: string) => {
     const msg = errorMsg.toLowerCase();
-    if (msg.includes('interests')) {
-            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb;`;
-    } else if (msg.includes('commissiondistribution') || msg.includes('commission_distribution')) {
-            return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "commissionDistribution" JSONB DEFAULT '[]'::jsonb;`;
+    
+    // Se o erro for falta da coluna 'interests' (onde salvamos os feedbacks)
+    if (msg.includes('interests') || msg.includes('column "interests" of relation "leads" does not exist')) {
+        return `-- EXECUTE ESTE COMANDO NO SQL EDITOR DO SUPABASE PARA ATIVAR FEEDBACKS:
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb;
+COMMENT ON COLUMN leads.interests IS 'Armazena feedbacks e status específicos por imóvel';`;
+    } 
+    
+    if (msg.includes('commissiondistribution') || msg.includes('commission_distribution')) {
+        return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "commissionDistribution" JSONB DEFAULT '[]'::jsonb;`;
     } else if (msg.includes('rentalenddate') || msg.includes('rental_end_date')) {
-            return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalEndDate" timestamp with time zone;`;
+        return `ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalEndDate" timestamp with time zone;`;
     } else if (msg.includes('source')) {
-            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS source text;`;
+        return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS source text;`;
     } else if (table === 'leads' && msg.includes('city')) {
-            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS city text;`;
+        return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS city text;`;
     } else if (table === 'leads' && msg.includes('state')) {
-            return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS state text;`;
+        return `ALTER TABLE leads ADD COLUMN IF NOT EXISTS state text;`;
     } else if (table === 'agencies' && msg.includes('city')) {
-            return `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS city text;`;
+        return `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS city text;`;
     } else if (table === 'agencies' && msg.includes('email')) {
-            return `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS email text;`;
+        return `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS email text;`;
     }
     return '';
 }
@@ -112,10 +118,10 @@ export const addItem = async <T>(table: string, item: any): Promise<T> => {
         let errorMsg = typeof error.message === 'string' ? error.message : JSON.stringify(error);
         const errorCode = error.code || '';
 
-        if (errorCode === '42703' || errorMsg.includes('Could not find the') || errorMsg.includes('does not exist')) {
+        if (errorCode === '42703' || errorMsg.includes('does not exist')) {
             const sqlSuggestion = getSqlSuggestion(table, errorMsg);
             if (sqlSuggestion) {
-                 alert(`ATUALIZAÇÃO NECESSÁRIA:\n\n${sqlSuggestion}`);
+                 alert(`ATUALIZAÇÃO DE BANCO NECESSÁRIA:\n\nPara salvar as observações por imóvel, execute este comando no SQL Editor do seu Supabase:\n\n${sqlSuggestion}`);
             }
         }
         throw error;
@@ -142,7 +148,7 @@ export const updateItem = async <T>(table: string, item: any): Promise<T> => {
         let errorMsg = typeof error.message === 'string' ? error.message : JSON.stringify(error);
         const sqlSuggestion = getSqlSuggestion(table, errorMsg);
         if (sqlSuggestion) {
-             alert(`ATUALIZAÇÃO NECESSÁRIA:\n\n${sqlSuggestion}`);
+             alert(`ATUALIZAÇÃO DE BANCO NECESSÁRIA:\n\nPara salvar as observações por imóvel, execute este comando no SQL Editor do seu Supabase:\n\n${sqlSuggestion}`);
         }
         throw new Error(error.message);
       }
