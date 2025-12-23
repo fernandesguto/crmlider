@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign, Sparkles, PieChart } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CheckSquare, LogOut, UserCircle, Settings, Globe, Key, X, ShieldAlert, DollarSign, Sparkles, PieChart, MessageCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ViewState, LeadStatus } from '../types';
 
@@ -14,40 +14,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   if (!currentUser) return null;
 
-  // Conta apenas leads com status NOVO que NÃO tenham imóveis de interesse vinculados
   const newLeadsCount = leads ? leads.filter(l => {
       const hasInterests = l.interestedInPropertyIds && l.interestedInPropertyIds.length > 0;
       return l.status === LeadStatus.NEW && !hasInterests;
   }).length : 0;
 
-  const NavItem = ({ view, icon: Icon, label, badge, color }: { view: ViewState, icon: any, label: string, badge?: number, color?: string }) => (
-    <button
-      onClick={() => {
-          setCurrentView(view);
-          onClose(); 
-      }}
-      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 ${
-        currentView === view ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-      } ${color ? color : ''}`}
-    >
-      <div className="flex items-center space-x-3">
-        <Icon size={20} />
-        <span className="font-medium">{label}</span>
-      </div>
-      {badge !== undefined && badge > 0 && (
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            currentView === view ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-        }`}>
-            {badge}
-        </span>
-      )}
-    </button>
-  );
+  const NavItem = ({ view, icon: Icon, label, badge, color }: { view: ViewState, icon: any, label: string, badge?: number, color?: string }) => {
+    const isActive = currentView === view;
+    return (
+      <button
+        onClick={() => {
+            setCurrentView(view);
+            onClose(); 
+        }}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 ${
+          isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+        } ${color || ''}`}
+      >
+        <div className="flex items-center space-x-3">
+          <Icon size={20} />
+          <span className="font-medium">{label}</span>
+        </div>
+        {badge !== undefined && badge > 0 ? (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              isActive ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
+          }`}>
+              {badge}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
 
   const handleLogout = (e: React.MouseEvent) => {
       e.preventDefault();
       logout();
-  }
+  };
 
   const handleOpenPublicSite = () => {
     if (!currentAgency) return;
@@ -114,6 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     </div>
                 </button>
 
+                <NavItem view="CONVERSATIONS" icon={MessageCircle} label="Negociações" color="text-green-600" />
                 <NavItem view="PROPERTIES" icon={Building2} label="Imóveis" />
                 <NavItem view="SALES" icon={DollarSign} label="Vendas" />
                 <NavItem view="RENTALS" icon={Key} label="Locações" />
