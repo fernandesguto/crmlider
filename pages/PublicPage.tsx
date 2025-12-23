@@ -647,7 +647,6 @@ export const PublicPage: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <p className="text-sm leading-relaxed max-w-xs text-slate-500 italic">Sua parceira de confiança no mercado imobiliário.</p>
                     </div>
                     <div>
                         <h4 className="text-slate-900 font-black uppercase text-xs tracking-widest mb-6">Contato</h4>
@@ -667,7 +666,6 @@ export const PublicPage: React.FC = () => {
                 </div>
                 <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                     <p>&copy; {new Date().getFullYear()} {agency?.name}. Todos os direitos reservados.</p>
-                    <p>Plataforma Desenvolvida por CRM Líder</p>
                 </div>
             </footer>
         </div>

@@ -89,7 +89,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="bg-slate-900 p-10 text-center relative">
+        <div className="bg-slate-900 p-10 text-center relative flex flex-col items-center">
             <button 
                 onClick={() => setCurrentView('LANDING')}
                 className="absolute top-4 left-4 text-slate-400 hover:text-white transition flex items-center text-xs"
@@ -97,13 +97,13 @@ export const Login: React.FC = () => {
                 <ArrowLeft size={14} className="mr-1" /> Home
             </button>
             
-            <div className="flex flex-col items-center justify-center">
-                <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
-                    CRM <span className="text-blue-500">Líder</span>
-                </h1>
-            </div>
+            <img 
+                src="https://assets.zyrosite.com/A1azoVg7xQilMZ9l/logo-d5YUILB2aPsLX5jf.png" 
+                alt="CRM Líder" 
+                className="h-16 md:h-20 w-auto brightness-200 mb-2" 
+            />
             
-            <p className="text-blue-200 mt-2 text-sm font-medium">Plataforma Multi-Imobiliárias</p>
+            <p className="text-blue-200 text-sm font-medium">Plataforma Multi-Imobiliárias</p>
         </div>
 
         {/* Tabs */}
@@ -203,89 +203,99 @@ export const Login: React.FC = () => {
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nome da Imobiliária</label>
                                 <div className="relative">
                                     <Briefcase size={18} className="absolute left-3 top-3.5 text-slate-400" />
+                                    {/* Fix: Completed truncated variable and added logic for regAgencyName input */}
                                     <input 
                                         required
                                         value={regAgencyName}
                                         onChange={(e) => setRegAgencyName(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="Ex: Imóveis do Sul"
+                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                        placeholder="Ex: Imobiliária Silva"
                                     />
                                 </div>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nome do Administrador</label>
-                                <input 
-                                    required
-                                    value={regAdminName}
-                                    onChange={(e) => setRegAdminName(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Seu nome completo"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">E-mail</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Seu Nome (Administrador)</label>
+                                <div className="relative">
+                                    <CheckCircle size={18} className="absolute left-3 top-3.5 text-slate-400" />
                                     <input 
-                                        type="email"
                                         required
-                                        value={regEmail}
-                                        onChange={(e) => setRegEmail(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="email@..."
+                                        value={regAdminName}
+                                        onChange={(e) => setRegAdminName(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                        placeholder="Seu nome completo"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">WhatsApp</label>
-                                    <div className="relative">
-                                        <Phone size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                                        <input 
-                                            required
-                                            value={regPhone}
-                                            onChange={(e) => {
-                                                let val = e.target.value
-                                                    .replace(/\D/g, '')
-                                                    .replace(/^(\d{2})(\d)/, '($1) $2')
-                                                    .replace(/(\d)(\d{4})$/, '$1-$2');
-                                                setRegPhone(val);
-                                            }}
-                                            className="w-full pl-9 pr-3 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="(00) 0..."
-                                            maxLength={15}
-                                        />
-                                    </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">E-mail de Acesso</label>
+                                <input 
+                                    type="email" 
+                                    required
+                                    value={regEmail}
+                                    onChange={(e) => setRegEmail(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="seu@email.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Telefone / WhatsApp</label>
+                                <div className="relative">
+                                    <Phone size={18} className="absolute left-3 top-3.5 text-slate-400" />
+                                    <input 
+                                        required
+                                        value={regPhone}
+                                        onChange={(e) => {
+                                            let val = e.target.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+                                            setRegPhone(val);
+                                        }}
+                                        maxLength={15}
+                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                        placeholder="(00) 00000-0000"
+                                    />
                                 </div>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Senha</label>
-                                <input 
-                                    type="password"
-                                    required
-                                    value={regPassword}
-                                    onChange={(e) => setRegPassword(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Crie uma senha segura"
-                                />
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Escolha uma Senha</label>
+                                <div className="relative">
+                                    <Lock size={18} className="absolute left-3 top-3.5 text-slate-400" />
+                                    <input 
+                                        type="password" 
+                                        required
+                                        value={regPassword}
+                                        onChange={(e) => setRegPassword(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
                             </div>
 
                             <button 
                                 type="submit" 
                                 disabled={isSubmitting}
-                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center transition disabled:opacity-70 shadow-md shadow-green-500/20"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center transition disabled:opacity-70 shadow-md shadow-blue-500/20"
                             >
-                                {isSubmitting ? 'Criando...' : 'Iniciar Teste Grátis (7 Dias)'}
+                                {isSubmitting ? 'Processando...' : 'Criar Minha Imobiliária'}
                             </button>
+                            
+                            <p className="text-[10px] text-slate-400 text-center mt-4">
+                                Ao se cadastrar, você concorda com nossos Termos de Uso e Política de Privacidade.
+                            </p>
                         </form>
                     )}
                 </>
             )}
 
             {!isHardcoded() && (
-                <div className="mt-8 text-center">
+                <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col items-center">
                     <button 
                         onClick={handleResetConfig}
-                        className="text-xs text-slate-400 hover:text-red-500 underline"
+                        className="text-xs text-slate-400 hover:text-red-500 transition flex items-center"
                     >
-                        Configurações do Banco de Dados
+                        <AlertCircle size={12} className="mr-1" /> Resetar Configurações Supabase
                     </button>
                 </div>
             )}
