@@ -63,7 +63,7 @@ export const generateMarketingStrategy = async (property: Property): Promise<Mar
     - Descrição Original: ${property.description}
 
     Gere um JSON com as seguintes chaves:
-    1. 'texts': Um array de objetos com 'tone' (Premium, Oportunidade, Emocional) e 'content' (texto persuasivo longo).
+    1. 'texts': Um array de objetos with 'tone' (Premium, Oportunidade, Emocional) e 'content' (texto persuasivo longo).
     2. 'strategies': Array com 4 estratégias de divulgação.
     3. 'targetAudience': Array com 3 perfis de público-alvo.
     4. 'whatsappTips': Array com 4 dicas comerciais para converter no WhatsApp.
@@ -200,9 +200,39 @@ export const findOpportunities = async (leads: Lead[], properties: Property[]): 
     }
 };
 
-export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]): Promise<AiRecoveryOpportunity[]> => {
+export const analyzeStaleLeads = async (leads: Lead[]): Promise<AiRecoveryOpportunity[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Analise leads inativos. JSON Array: [{ "type", "id", "name", "daysInactive", "info", "analysis", "suggestion" }]`;
+    
+    // Preparar dados simplificados para a IA
+    const now = new Date();
+    const leadsData = leads.map(l => {
+        const createdDate = new Date(l.createdAt);
+        const daysInactive = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+            id: l.id,
+            name: l.name,
+            status: l.status,
+            daysInactive: daysInactive,
+            notes: l.notes || 'Sem notas',
+            interestsCount: l.interestedInPropertyIds?.length || 0
+        };
+    }).filter(l => l.daysInactive >= 3 && l.status !== 'Fechado' && l.status !== 'Perdido');
+
+    const prompt = `Atue como um Especialista em CRM Imobiliário. Analise a lista de leads abaixo que estão sem interação recente.
+    
+    Sua tarefa:
+    1. Identificar leads que parecem "esquecidos" (Ex: Status 'Novo' ou 'Contatado' há mais de 5 dias).
+    2. Para cada um, escreva uma análise curta do porquê ele está inativo.
+    3. Crie uma sugestão de mensagem de WhatsApp persuasiva para reativar o contato.
+
+    DADOS DOS LEADS:
+    ${JSON.stringify(leadsData)}
+
+    Retorne um JSON Array de objetos: 
+    [{ "type": "lead", "id", "name", "daysInactive", "info": "status atual", "analysis": "sua análise aqui", "suggestion": "mensagem de WhatsApp sugerida" }]
+    
+    Mantenha o tom profissional e focado em resultados.`;
+
     try {
         const response = await ai.models.generateContent({ 
             model: 'gemini-3-pro-preview', 
@@ -229,5 +259,8 @@ export const analyzeStaleLeads = async (leads: Lead[], properties?: Property[]):
         });
         const result = parseGenerativeJson(response.text);
         return Array.isArray(result) ? result : [];
-    } catch (error) { return []; }
+    } catch (error) { 
+        console.error("Erro analyzeStaleLeads:", error);
+        return []; 
+    }
 };
