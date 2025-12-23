@@ -20,6 +20,7 @@ export const Properties: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
+  const leadSoldDropdownRef = useRef<HTMLDivElement>(null);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,6 +32,9 @@ export const Properties: React.FC = () => {
 
   const [soldModalOpen, setSoldModalOpen] = useState(false);
   const [selectedBuyerLead, setSelectedBuyerLead] = useState<string>('');
+  const [leadSearchSold, setLeadSearchSold] = useState('');
+  const [isLeadSoldDropdownOpen, setIsLeadSoldDropdownOpen] = useState(false);
+  
   const [selectedSellingBroker, setSelectedSellingBroker] = useState<string>('');
   const [saleType, setSaleType] = useState<'internal' | 'external'>('internal');
   
@@ -48,7 +52,6 @@ export const Properties: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Fix: Rename setSearchTerm to setSearchText to align with calls elsewhere in the file
   const [searchText, setSearchText] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
@@ -62,7 +65,6 @@ export const Properties: React.FC = () => {
   const [bathroomsFilter, setBathroomsFilter] = useState<string>('');
   const [sortOption, setSortOption] = useState<string>('date_desc');
 
-  // Estado para adicionar lead nos detalhes
   const [isAddingLeadInDetails, setIsAddingLeadInDetails] = useState(false);
   const [leadInDetailsSearch, setLeadInDetailsSearch] = useState('');
 
@@ -83,6 +85,16 @@ export const Properties: React.FC = () => {
 
   const allFeatures = Array.from(new Set(properties.flatMap(p => p.features || []))).sort();
   const allCities = Array.from(new Set(properties.map(p => p.city || '').filter(c => c !== ''))).sort();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (leadSoldDropdownRef.current && !leadSoldDropdownRef.current.contains(event.target as Node)) {
+        setIsLeadSoldDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   interface ImageInfo {
       base64: string;
@@ -352,7 +364,6 @@ export const Properties: React.FC = () => {
       });
 
   const clearFilters = () => {
-      // Fix: Used setSearchText correctly
       setSearchText(''); setPriceMin(''); setPriceMax(''); setTypeFilter(''); setSelectedFeatures([]); setCategoryFilter(''); setSubtypeFilter(''); setCityFilter(''); setBedroomsFilter(''); setBathroomsFilter(''); setSortOption('date_desc');
   };
 
@@ -446,7 +457,11 @@ export const Properties: React.FC = () => {
 
   const isRental = (type: string) => type.includes('Locação');
   const handleOpenSoldModal = () => {
-      setSaleType('internal'); setSelectedBuyerLead(''); setSelectedSellingBroker(currentUser?.id || '');
+      setSaleType('internal'); 
+      setSelectedBuyerLead(''); 
+      setLeadSearchSold('');
+      setIsLeadSoldDropdownOpen(false);
+      setSelectedSellingBroker(currentUser?.id || '');
       const initialPrice = selectedProperty?.price || 0;
       setFinalSalePrice(initialPrice); setCommissionType('percent'); setCommissionPercent('6'); setCommissionFixed(0);
       const today = new Date().toISOString().split('T')[0];
@@ -641,6 +656,11 @@ export const Properties: React.FC = () => {
          l.phone.includes(leadInDetailsSearch))
     ).slice(0, 5);
 
+    const filteredLeadsForSold = leads.filter(l => 
+        l.name.toLowerCase().includes(leadSearchSold.toLowerCase()) || 
+        l.phone.includes(leadSearchSold)
+    ).slice(0, 8);
+
     return (
       <div className="p-4 md:p-8 h-screen overflow-y-auto bg-slate-50">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
@@ -783,7 +803,53 @@ export const Properties: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                     <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold text-slate-800">{isRental(selectedProperty.type) ? 'Fechar Locação' : 'Fechar Venda'}</h2><button onClick={() => setSoldModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button></div>
                     <div className="space-y-5">
-                        <div><label className="block text-sm font-bold text-slate-700 mb-2">{isRental(selectedProperty.type) ? 'Quem alugou este imóvel?' : 'Quem comprou este imóvel?'}</label><div className="space-y-3"><label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 bg-white"><input type="radio" name="saleType" checked={saleType === 'internal'} onChange={() => setSaleType('internal')} className="w-4 h-4 text-blue-600"/><span className="font-medium text-slate-800">Cliente da Imobiliária (Lead)</span></label>{saleType === 'internal' && (<div className="ml-7 space-y-3"><div><label className="block text-xs font-bold text-slate-500 mb-1">Cliente (Lead)</label><select className="w-full bg-white border border-slate-300 rounded-lg p-2 text-sm bg-white" value={selectedBuyerLead} onChange={(e) => setSelectedBuyerLead(e.target.value)}><option value="">Selecione o Lead...</option>{leads.map(lead => <option key={lead.id} value={lead.id}>{lead.name}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-500 mb-1">Corretor Vendedor</label><select className="w-full bg-white border border-slate-300 rounded-lg p-2 text-sm bg-white" value={selectedSellingBroker} onChange={(e) => setSelectedSellingBroker(e.target.value)}><option value="">Selecione quem vendeu...</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div></div>)}<label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 bg-white"><input type="radio" name="saleType" checked={saleType === 'external'} onChange={() => setSaleType('external')} className="w-4 h-4 text-blue-600"/><div><span className="block font-medium text-slate-800">Venda Externa / Outra Imobiliária</span><span className="text-xs text-slate-500">Apenas marca como vendido no sistema</span></div></label></div></div>
+                        <div><label className="block text-sm font-bold text-slate-700 mb-2">{isRental(selectedProperty.type) ? 'Quem alugou este imóvel?' : 'Quem comprou este imóvel?'}</label><div className="space-y-3"><label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 bg-white"><input type="radio" name="saleType" checked={saleType === 'internal'} onChange={() => setSaleType('internal')} className="w-4 h-4 text-blue-600"/><span className="font-medium text-slate-800">Cliente da Imobiliária (Lead)</span></label>{saleType === 'internal' && (
+                            <div className="ml-7 space-y-3">
+                                <div className="relative" ref={leadSoldDropdownRef}>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Cliente (Lead)</label>
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                                        <input 
+                                            type="text"
+                                            placeholder="Buscar lead por nome ou tel..."
+                                            className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={leadSearchSold}
+                                            onChange={(e) => {
+                                                setLeadSearchSold(e.target.value);
+                                                setIsLeadSoldDropdownOpen(true);
+                                            }}
+                                            onFocus={() => setIsLeadSoldDropdownOpen(true)}
+                                        />
+                                        {isLeadSoldDropdownOpen && leadSearchSold && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-[60] max-h-48 overflow-y-auto">
+                                                {filteredLeadsForSold.map(lead => (
+                                                    <button 
+                                                        key={lead.id} 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedBuyerLead(lead.id);
+                                                            setLeadSearchSold(lead.name);
+                                                            setIsLeadSoldDropdownOpen(false);
+                                                        }}
+                                                        className="w-full text-left p-2.5 hover:bg-blue-50 border-b border-slate-50 last:border-0 transition"
+                                                    >
+                                                        <p className="text-sm font-bold text-slate-700">{lead.name}</p>
+                                                        <p className="text-[10px] text-slate-500">{lead.phone}</p>
+                                                    </button>
+                                                ))}
+                                                {filteredLeadsForSold.length === 0 && <p className="p-3 text-center text-xs text-slate-400 italic">Nenhum compatível.</p>}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!leadSearchSold && selectedBuyerLead && (
+                                        <div className="mt-1 text-[10px] text-blue-600 font-bold px-1">
+                                            Selecionado: {leads.find(l => l.id === selectedBuyerLead)?.name}
+                                        </div>
+                                    )}
+                                </div>
+                                <div><label className="block text-xs font-bold text-slate-500 mb-1">Corretor Vendedor</label><select className="w-full bg-white border border-slate-300 rounded-lg p-2 text-sm bg-white" value={selectedSellingBroker} onChange={(e) => setSelectedSellingBroker(e.target.value)}><option value="">Selecione quem vendeu...</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+                            </div>
+                        )}<label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 bg-white"><input type="radio" name="saleType" checked={saleType === 'external'} onChange={() => setSaleType('external')} className="w-4 h-4 text-blue-600"/><div><span className="block font-medium text-slate-800">Venda Externa / Outra Imobiliária</span><span className="text-xs text-slate-500">Apenas marca como vendido no sistema</span></div></label></div></div>
                         {isRental(selectedProperty.type) && (<div className="bg-blue-50 p-4 rounded-lg border border-blue-100"><label className="block text-sm font-bold text-blue-800 mb-2 flex items-center"><Calendar size={16} className="mr-1.5"/> Período do Contrato</label><div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-blue-700 mb-1">Início</label><input type="date" value={rentalStartDate} onChange={e => setRentalStartDate(e.target.value)} className="w-full bg-white border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/></div><div><label className="block text-xs font-bold text-blue-700 mb-1">Fim</label><input type="date" value={rentalEndDate} onChange={e => setRentalEndDate(e.target.value)} className="w-full bg-white border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/></div></div><p className="text-[10px] text-blue-600 mt-2 italic">* O sistema criará um alerta automático 7 dias antes do vencimento.</p></div>)}
                         {saleType === 'internal' && (<div><label className="block text-sm font-bold text-slate-700 mb-1">{isRental(selectedProperty.type) ? 'Valor do Aluguel (R$)' : 'Valor Final da Venda (R$)'}</label><input type="text" value={formatCurrency(finalSalePrice)} onChange={e => setFinalSalePrice(parseCurrency(e.target.value))} className="w-full bg-white border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-green-500 font-semibold text-slate-900" /></div>)}
                         {saleType === 'internal' && (<div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><label className="block text-sm font-bold text-slate-700 mb-2">Comissão / Agenciamento</label><div className="flex gap-2 mb-2"><button type="button" onClick={() => setCommissionType('percent')} className={`flex-1 py-1.5 text-xs font-bold rounded border ${commissionType === 'percent' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}`}>Porcentagem (%)</button><button type="button" onClick={() => setCommissionType('fixed')} className={`flex-1 py-1.5 text-xs font-bold rounded border ${commissionType === 'fixed' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}`}>Valor Fixo (R$)</button></div><div className="flex items-center gap-3">{commissionType === 'percent' ? (<input type="number" value={commissionPercent} onChange={e => setCommissionPercent(e.target.value)} className="w-24 bg-white border border-slate-300 rounded-lg p-2 text-center font-bold text-slate-900" placeholder="6"/>) : (<input type="text" value={formatCurrency(commissionFixed)} onChange={e => setCommissionFixed(parseCurrency(e.target.value))} className="w-24 bg-white border border-slate-300 rounded-lg p-2 text-center font-bold text-slate-900"/>)}<div className="text-right flex-1"><p className="text-xs text-slate-500 uppercase font-bold">Valor a Receber</p><p className="text-xl font-bold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculatedCommission)}</p></div></div></div>)}

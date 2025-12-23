@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Building2, DollarSign, Calendar, User, ArrowUpRight, RotateCcw, TrendingUp, X, CheckCircle, AlertTriangle, Clock, PlayCircle, RefreshCw } from 'lucide-react';
+import { Building2, DollarSign, Calendar, User, ArrowUpRight, RotateCcw, TrendingUp, X, CheckCircle, AlertTriangle, Clock, PlayCircle, RefreshCw, BarChart3 } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Property } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 export const Rentals: React.FC = () => {
   const { properties, leads, reactivateProperty, renewRental, financialRecords } = useApp();
@@ -63,6 +64,44 @@ export const Rentals: React.FC = () => {
   const monthlyRevenue = rentedProperties.reduce((acc, curr) => acc + getCurrentFinancials(curr).commission, 0);
   const totalContractsValue = rentedProperties.reduce((acc, curr) => acc + getCurrentFinancials(curr).rent, 0);
 
+  // --- LÓGICA DO GRÁFICO (Últimos 12 meses) ---
+  const getRentalsChartData = () => {
+    const months = 12;
+    const data = [];
+    const now = new Date();
+    
+    for (let i = months - 1; i >= 0; i--) {
+        const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = refDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+        const nextMonth = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
+        
+        let totalComissaoMes = 0;
+        
+        // Sum from properties closed in that month
+        rentedProperties.forEach(p => {
+            if (!p.soldAt) return;
+            const soldDate = new Date(p.soldAt);
+            if (soldDate >= refDate && soldDate < nextMonth) {
+                totalComissaoMes += (p.commissionValue || 0);
+            }
+        });
+
+        // Sum from historical records (renewal entries)
+        financialRecords.forEach(rec => {
+            if (rec.type !== 'Rental') return;
+            const recDate = new Date(rec.date);
+            if (recDate >= refDate && recDate < nextMonth) {
+                totalComissaoMes += (rec.commission || 0);
+            }
+        });
+        
+        data.push({ name: monthKey, Receita: totalComissaoMes });
+    }
+    return data;
+  };
+
+  const chartData = getRentalsChartData();
+
   // --- CURRENCY HELPERS ---
   const parseCurrency = (value: string) => {
     return Number(value.replace(/\D/g, "")) / 100;
@@ -72,6 +111,8 @@ export const Rentals: React.FC = () => {
     if (value === undefined || isNaN(value)) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
+
+  const currencyFormatter = (val: number) => val >= 1000 ? `R$ ${(val/1000).toFixed(1)}k` : `R$ ${val}`;
 
   const getLeadName = (leadId?: string) => {
       if (!leadId) return 'Cliente Externo / Desconhecido';
@@ -171,6 +212,26 @@ export const Rentals: React.FC = () => {
             subtext="Volume financeiro mensal (Vigente)"
             color="bg-purple-600" 
         />
+      </div>
+
+      {/* Gráfico de Evolução */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+        <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
+            <BarChart3 className="mr-2 text-purple-600" size={20}/> Evolução de Receita de Locação - Últimos 12 Meses
+        </h3>
+        <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={currencyFormatter} />
+                    <Tooltip formatter={(val: number) => formatCurrency(val)} />
+                    <Bar dataKey="Receita" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={50}>
+                        <LabelList dataKey="Receita" position="top" formatter={currencyFormatter} fill="#8b5cf6" fontSize={11} fontWeight="bold" />
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
