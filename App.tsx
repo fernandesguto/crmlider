@@ -19,6 +19,7 @@ import { SetupModal } from './components/SetupModal';
 import { checkConfiguration } from './services/supabaseClient';
 import { NotificationModal } from './components/NotificationModal';
 import { AiMatching } from './pages/AiMatching';
+import { Conversations } from './pages/Conversations';
 import { Menu, Building2 } from 'lucide-react';
 import { Lead, Property } from './types';
 
@@ -147,6 +148,7 @@ const MainLayout: React.FC = () => {
         {currentView === 'SETTINGS' && <Settings />}
         {currentView === 'SUPER_ADMIN' && <SuperAdmin />}
         {currentView === 'AI_MATCHING' && <AiMatching />}
+        {currentView === 'CONVERSATIONS' && <Conversations />}
       </main>
 
       {notificationTask && (

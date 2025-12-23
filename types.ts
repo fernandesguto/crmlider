@@ -97,6 +97,7 @@ export interface LeadInterest {
     propertyId: string;
     status: LeadStatus;
     updatedAt: string;
+    notes?: string; // Observações específicas do que o cliente achou deste imóvel
 }
 
 export interface Lead {
@@ -173,4 +174,4 @@ export interface AiRecoveryOpportunity {
     suggestion: string; // Mensagem de WhatsApp ou Dica de estratégia
 }
 
-export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING' | 'COMMISSIONS';
+export type ViewState = 'LANDING' | 'DASHBOARD' | 'PROPERTIES' | 'LEADS' | 'TASKS' | 'USERS' | 'SETTINGS' | 'PUBLIC' | 'RENTALS' | 'SALES' | 'SUPER_ADMIN' | 'AI_MATCHING' | 'COMMISSIONS' | 'CONVERSATIONS';
