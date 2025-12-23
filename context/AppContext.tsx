@@ -335,9 +335,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const idx = interests.findIndex(i => i.propertyId === propertyId);
         if (idx >= 0) {
-            interests[idx] = { ...interests[idx], status, updatedAt: new Date().toISOString() };
+            // Preserva as notas existentes ao atualizar o status
+            interests[idx] = { 
+                ...interests[idx], 
+                status, 
+                updatedAt: new Date().toISOString() 
+            };
         } else {
-            interests.push({ propertyId, status, updatedAt: new Date().toISOString() });
+            interests.push({ propertyId, status, updatedAt: new Date().toISOString(), notes: '' });
         }
         
         // Sincroniza interestedInPropertyIds para garantir que o lead seja filtrado corretamente na tela de imóveis
