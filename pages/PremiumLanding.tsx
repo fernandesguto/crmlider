@@ -214,7 +214,7 @@ export const PremiumLanding: React.FC = () => {
                             <div className="mb-12">
                                 <p className="text-purple-400 font-black uppercase text-xs tracking-widest mb-6">Assinatura Mensal</p>
                                 <div className="flex items-baseline">
-                                    <span className="text-7xl font-black tracking-tighter">R$ 39,90</span>
+                                    <span className="text-7xl font-black tracking-tighter">R$ 69,90</span>
                                     <span className="text-slate-500 font-bold ml-2">/mês</span>
                                 </div>
                             </div>
@@ -229,7 +229,7 @@ export const PremiumLanding: React.FC = () => {
                                     'Suporte Prioritário por WhatsApp'
                                 ].map((benefit, i) => (
                                     <li key={i} className="flex items-start space-x-4">
-                                        <div className="bg-purple-500/20 text-purple-400 p-1 rounded-full flex-shrink-0 mt-0.5"><Check size={16} strokeWidth={4} /></div>
+                                        <div className="bg-purple-50/20 text-purple-400 p-1 rounded-full flex-shrink-0 mt-0.5"><Check size={16} strokeWidth={4} /></div>
                                         <span className="text-slate-300 font-medium leading-tight">{benefit}</span>
                                     </li>
                                 ))}

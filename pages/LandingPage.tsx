@@ -374,7 +374,7 @@ export const LandingPage: React.FC = () => {
                             <div className="mb-10">
                                 <p className="text-blue-400 font-black uppercase text-xs tracking-widest mb-4">Assinatura Mensal</p>
                                 <div className="flex items-baseline justify-center">
-                                    <span className="text-7xl font-black tracking-tighter">R$ 39,90</span>
+                                    <span className="text-7xl font-black tracking-tighter">R$ 69,90</span>
                                     <span className="text-slate-500 font-bold ml-2">/mês</span>
                                 </div>
                             </div>
